@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
-	"math/rand"
+
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat/distuv"
 )
@@ -52,64 +52,102 @@ func (nn *Network) OutputLayer() *Layer {
 func (nn *Network) Predict(input *mat.VecDense) *mat.VecDense {
 	nn.layers[0].feed(input)
 	for j := 1; j < len(nn.layers); j++ {
-		nn.layers[j].feed(nn.layers[j-1].activation)
+		nn.layers[j].feed(nn.layers[j-1].output)
 	}
-	return nn.OutputLayer().activation
+	return nn.OutputLayer().output
 }
 
-func (nn *Network) Evaluate(testData []Record) float64 {
+func softmax(vec *mat.VecDense) *mat.VecDense {
+	new := mat.NewVecDense(vec.Len(), nil)
+
+	sum := 0.0
+	for i := 0; i < vec.Len(); i++ {
+		sum += math.Exp(vec.AtVec(i))
+	}
+
+	for i := 0; i < vec.Len(); i++ {
+		new.SetVec(i, math.Exp(vec.AtVec(i))/sum)
+	}
+
+	return new
+}
+
+func (nn *Network) Evaluate(testData []Record) (float64, int) {
+	correct := 0
 
 	// Calculate average MSE
 	err := 0.0
 	for _, record := range testData {
 		prediction := nn.Predict(record.data)
+		//fmt.Println(prediction)
 		expected := target(record.label)
+		//fmt.Println(expected)
+
+		max := 0
+		for i := 0; i < prediction.Len(); i++ {
+			if prediction.AtVec(i) > prediction.AtVec(max) {
+				max = i
+			}
+		}
+
+		if expected.AtVec(max) == 1.0 {
+			correct++
+		}
 
 		prediction.SubVec(expected, prediction)
 		for i := 0; i < prediction.Len(); i++ {
 			prediction.SetVec(i, math.Pow(prediction.AtVec(i), 2))
 		}
 
-		// Average error per class
+		// Add MSE to total
 		err += mat.Sum(prediction) / float64(prediction.Len())
 
 	}
 
 	// Average error over whole train set
-	return err / float64(len(testData))
+	return err / float64(len(testData)), correct
 }
 
 type Layer struct {
-	in         int
-	out        int
-	weights    *mat.Dense
-	output     *mat.VecDense
-	activation *mat.VecDense
+	in                 int
+	out                int
+	activationFunction string
+	weights            *mat.Dense
+	biases             *mat.VecDense
+	activation         *mat.VecDense
+	output             *mat.VecDense
 }
 
-func NewLayer(in int, out int) Layer {
-	weights := makeMatrix(out, in)
-	output := mat.NewVecDense(out, nil)
+func NewLayer(in int, out int, activationFunction string) Layer {
+	weights := initialiseWeights(out, in)
+	biases := mat.NewVecDense(out, nil)
+	for i := 0; i < out; i++ {
+		biases.SetVec(i, 1.0)
+	}
 	activation := mat.NewVecDense(out, nil)
-	return Layer{in, out, weights, output, activation}
+	output := mat.NewVecDense(out, nil)
+	return Layer{in, out, activationFunction, weights, activation, output, biases}
 }
 
 func (layer *Layer) feed(input *mat.VecDense) {
-	output := mat.NewVecDense(layer.out, nil)
-	output.MulVec(layer.weights, input)
-	layer.output = output
-	layer.activation = applyVec(layer.output, sig)
+	activation := mat.NewVecDense(layer.out, nil)
+	activation.MulVec(layer.weights, input)
+	//activation.AddVec(activation, layer.biases)
+	layer.activation = activation
+
+	if layer.activationFunction == "sigmoid" {
+		layer.output = applyVec(layer.activation, sig)
+	} else if layer.activationFunction == "softmax" {
+		layer.output = softmax(layer.activation) 
+	}
 }
 
-func makeMatrix(rows, cols int) *mat.Dense {
-	rand.Seed(0)
+func initialiseWeights(rows, cols int) *mat.Dense {
 	elements := rows * cols
-
-	normal := distuv.Normal { Mu: 0.0, Sigma: 1, }
 
 	var data []float64 = make([]float64, elements)
 	for i := 0; i < elements; i++ {
-		data[i] = normal.Rand()
+		data[i] = distuv.UnitNormal.Rand()
 	}
 
 	return mat.NewDense(rows, cols, data)
@@ -120,15 +158,15 @@ func sig(v float64) float64 {
 }
 
 func sigPrime(v float64) float64 {
-	return v * (1 - v)
+	return v * (1.0 - v)
 }
 
-func cost(output, target float64) float64 {
-	return math.Pow(target-output, 2)
+func cost(activation, target float64) float64 {
+	return math.Pow(activation-target, 2.0)
 }
 
-func deltaCost(output, target float64) float64 {
-	return 2 * (target - output)
+func deltaCost(activation, target float64) float64 {
+	return 2.0 * (target - activation)
 }
 
 func applyVec(vec *mat.VecDense, f func(float64) float64) *mat.VecDense {
@@ -144,12 +182,12 @@ func main() {
 	data := loadData()
 	fmt.Println(len(data.train), len(data.test))
 
-	network := NewNetwork().WithLayer(NewLayer(784, 300)).WithLayer(NewLayer(300, 100)).WithLayer(NewLayer(100, 10))
+	network := NewNetwork().WithLayer(NewLayer(784, 300, "sigmoid")).WithLayer(NewLayer(300, 100, "sigmoid")).WithLayer(NewLayer(100, 10, "softmax"))
 	epochs := 50
 	eta := 0.01
 	for i := 0; i < epochs; i++ {
-		fmt.Println("Epoch", i, "Loss", network.Evaluate(data.test))
-		for r := 0; r < len(data.train); r++ {
+		loss, correct := network.Evaluate(data.test)
+		for r := 0; r < 10000; r++ {
 			record := data.train[r]
 
 			// Forward propagation
@@ -158,61 +196,93 @@ func main() {
 			// Get target prediction
 			target := target(record.label)
 
-			// Initialise delta vectors for each layers' out neurons
-			var deltas []*mat.VecDense
+			// Initialise error deltas
+			var deltas []*mat.Dense
 			for j := 0; j < len(network.layers); j++ {
-				deltas = append(deltas, mat.NewVecDense(network.layers[j].out, nil))
+				deltas = append(deltas, mat.NewDense(network.layers[j].out, network.layers[j].in, nil))
 			}
 
-			// Find delta for each neuron
-			for j := len(network.layers) - 1; j >= 0; j-- {
-				layer := network.layers[j]
+			dEdI := mat.NewVecDense(network.OutputLayer().out, nil)
 
-				err := mat.NewVecDense(layer.out, nil)
+			// Find delta for each neuron
+			for j := len(network.layers) - 1; j > 0; j-- {
+				layer := network.layers[j]
+				prevLayer := network.layers[j-1]
+				delta := mat.NewDense(layer.out, layer.in, nil)
+
 				// This is the output layer
 				if j == len(network.layers)-1 {
 
-					// Calculate cost of output layer
+					// K is index of each neuron in this layer
 					for k := 0; k < layer.out; k++ {
-						err.SetVec(k, cost(layer.activation.AtVec(k), target.AtVec(k)))
-					}
-				} else {
-					// Otherwise this is a hidden layer
-					nextLayer := network.layers[j+1]
 
-					// Calculate matrix of backwards propagated errors
-					errorMat := mat.NewDense(layer.out, 1, nil)
-					errorMat.Mul(nextLayer.weights.T(), deltas[j+1])
-					for k := 0; k < layer.out; k++ {
-						err.SetVec(k, errorMat.At(k, 0))
+						// Cost with respect to output
+						dEdO := deltaCost(layer.output.AtVec(k), target.AtVec(k))
+
+						// Output with respect to input
+						dOdI := sigPrime(layer.output.AtVec(k))
+
+						// Save some values for the next layer
+						dEdI.SetVec(k, dEdO*dOdI)
+
+						// L is index of each neuron connected behind this one
+						for l := 0; l < layer.in; l++ {
+
+							// Input with respect to weight
+							dIdW := prevLayer.output.AtVec(l)
+
+							// Combine derivatives using chain rule to get cost function with respect to weight
+							dEdW := dEdO * dOdI * dIdW
+
+							delta.Set(k, l, dEdW)
+						}
 					}
+
+				} else {
+
+					nextLayer := network.layers[j+1]
+					dEdINew := mat.NewVecDense(layer.out, nil)
+					// This is a hidden layer
+
+					// K is index of each neuron in this layer
+					for k := 0; k < layer.out; k++ {
+
+						// Change to a sum of errors because we have multiple output neurons
+						dEdO := 0.0
+						for m := 0; m < nextLayer.out; m++ {
+
+							// Retrieve saved value and multiply by weight to backpropagate the error
+							dEdO += dEdI.AtVec(m) * nextLayer.weights.At(m, k)
+						}
+
+						// rest is the same
+						dOdI := sigPrime(layer.output.AtVec(k))
+
+						dEdINew.SetVec(k, dEdO*dOdI)
+
+						// L is index of each neuron connected behind this one
+						for l := 0; l < layer.in; l++ {
+
+							dIdW := prevLayer.output.AtVec(l)
+							dEdW := dEdO * dOdI * dIdW
+							delta.Set(k, l, dEdW)
+						}
+					}
+
+					dEdI = dEdINew
 				}
-				
-				for k := 0; k < layer.out; k++ {
-					deltas[j].SetVec(k, err.AtVec(k)*sigPrime(err.AtVec(k)))
-				}
+
+				deltas[j] = delta
 			}
 
-			// Update each weight according to deltas
-
-			// For each layer
+			// Update each layers weights with deltas
 			for j := 0; j < len(network.layers); j++ {
 				layer := network.layers[j]
-
-				// input := record.data
-				// if j != 0 {
-				// 	input = network.layers[j-1].activation
-				// }
-
-				// For each neuron in that layer
-				for k := 0; k < deltas[j].Len(); k++ {
-					for l := 0; l < layer.out; l++ {
-						oldWeight := layer.weights.At(k, l)
-						update := eta * deltas[j].AtVec(k)
-						layer.weights.Set(k, l, oldWeight-update)
-					}
-				}
+				deltas[j].Scale(eta, deltas[j])
+				layer.weights.Add(layer.weights, deltas[j])
 			}
 		}
+
+		fmt.Println("Epoch", i, "Loss", loss, "Correct", correct)
 	}
 }
