@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/petar/GoMNIST"
 	"gonum.org/v1/gonum/mat"
-	"fmt"
 )
 
 func rawImageToInputVector(img GoMNIST.RawImage) *mat.VecDense {
@@ -42,5 +44,45 @@ func loadData() *Data {
 	}
 
 	// Return data
-	return &Data{ trainRecords, testRecords }
+	return &Data{trainRecords, testRecords}
+}
+
+func softmax(vec *mat.VecDense) *mat.VecDense {
+	new := mat.NewVecDense(vec.Len(), nil)
+
+	sum := 0.0
+	for i := 0; i < vec.Len(); i++ {
+		sum += math.Exp(vec.AtVec(i))
+	}
+
+	for i := 0; i < vec.Len(); i++ {
+		new.SetVec(i, math.Exp(vec.AtVec(i))/sum)
+	}
+
+	return new
+}
+
+func sig(v float64) float64 {
+	return 1.0 / (1.0 + math.Exp(-v))
+}
+
+func sigPrime(v float64) float64 {
+	return v * (1.0 - v)
+}
+
+func cost(activation, target float64) float64 {
+	return math.Pow(activation-target, 2.0)
+}
+
+func deltaCost(activation, target float64) float64 {
+	return 2.0 * (target - activation)
+}
+
+func applyVec(vec *mat.VecDense, f func(float64) float64) *mat.VecDense {
+	newVec := mat.NewVecDense(vec.Len(), nil)
+	for i := 0; i < newVec.Len(); i++ {
+		newVec.SetVec(i, f(vec.At(i, 0)))
+	}
+
+	return newVec
 }
