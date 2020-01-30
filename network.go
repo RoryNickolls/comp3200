@@ -42,9 +42,11 @@ func (nn *Network) Train(trainData []Record, eta float64) {
 		target := record.expected
 
 		// Initialise error deltas
-		var deltas []*mat.Dense
+		var weightDeltas []*mat.Dense
+		var biasDeltas []*mat.VecDense
 		for j := 0; j < len(nn.layers); j++ {
-			deltas = append(deltas, mat.NewDense(nn.layers[j].out, nn.layers[j].in, nil))
+			weightDeltas = append(weightDeltas, mat.NewDense(nn.layers[j].out, nn.layers[j].in, nil))
+			biasDeltas = append(biasDeltas, mat.NewVecDense(nn.layers[j].out, nil))
 		}
 
 		dEdI := mat.NewVecDense(nn.OutputLayer().out, nil)
@@ -53,7 +55,9 @@ func (nn *Network) Train(trainData []Record, eta float64) {
 		for j := len(nn.layers) - 1; j > 0; j-- {
 			layer := nn.layers[j]
 			prevLayer := nn.layers[j-1]
-			delta := mat.NewDense(layer.out, layer.in, nil)
+
+			deltaW := mat.NewDense(layer.out, layer.in, nil)
+			deltaB := mat.NewVecDense(layer.out, nil)
 
 			// This is the output layer
 			if j == len(nn.layers)-1 {
@@ -79,15 +83,18 @@ func (nn *Network) Train(trainData []Record, eta float64) {
 						// Combine derivatives using chain rule to get cost function with respect to weight
 						dEdW := dEdO * dOdI * dIdW
 
-						delta.Set(k, l, dEdW)
+						deltaW.Set(k, l, dEdW)
 					}
+
+					dEdB := dEdO * dOdI
+					deltaB.SetVec(k, dEdB)
 				}
 
 			} else {
+				// This is a hidden layer
 
 				nextLayer := nn.layers[j+1]
 				dEdINew := mat.NewVecDense(layer.out, nil)
-				// This is a hidden layer
 
 				// K is index of each neuron in this layer
 				for k := 0; k < layer.out; k++ {
@@ -110,26 +117,32 @@ func (nn *Network) Train(trainData []Record, eta float64) {
 
 						dIdW := prevLayer.output.AtVec(l)
 						dEdW := dEdO * dOdI * dIdW
-						delta.Set(k, l, dEdW)
+						deltaW.Set(k, l, dEdW)
 					}
+
+					dEdB := dEdO * dOdI
+					deltaB.SetVec(k, dEdB)
 				}
 
 				dEdI = dEdINew
 			}
 
-			deltas[j] = delta
+			weightDeltas[j] = deltaW
+			biasDeltas[j] = deltaB
 		}
 
 		// Update each layers weights with deltas
 		for j := 0; j < len(nn.layers); j++ {
 			layer := nn.layers[j]
-			deltas[j].Scale(eta, deltas[j])
-			layer.weights.Add(layer.weights, deltas[j])
+			weightDeltas[j].Scale(eta, weightDeltas[j])
+			biasDeltas[j].ScaleVec(eta, biasDeltas[j])
+			layer.weights.Add(layer.weights, weightDeltas[j])
+			layer.biases.AddVec(layer.biases, biasDeltas[j])
 		}
 	}
 }
 
-func (nn *Network) Evaluate(testData []Record) (float64, int) {
+func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 	correct := 0
 
 	// Calculate average MSE
@@ -159,7 +172,7 @@ func (nn *Network) Evaluate(testData []Record) (float64, int) {
 	}
 
 	// Average error over whole train set
-	return err / float64(len(testData)), correct
+	return err / float64(len(testData)), float64(correct) / float64(len(testData))
 }
 
 type layer struct {
