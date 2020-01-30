@@ -12,9 +12,10 @@ func main() {
 	epochs := 50
 	eta := 0.01
 	for i := 0; i < epochs; i++ {
-		network.Train(data.train, eta)
+		network.Train(data.train[:1000], eta)
 
 		loss, correct := network.Evaluate(data.test)
-		fmt.Println("Epoch", i, "Loss", loss, "Correct", correct)
+
+		fmt.Printf("Epoch %.2d Loss %.4f Accuracy %.4f\n", i, loss, correct)
 	}
 }
