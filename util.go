@@ -50,13 +50,17 @@ func loadData() *Data {
 func softmax(vec *mat.VecDense) *mat.VecDense {
 	new := mat.NewVecDense(vec.Len(), nil)
 
+	max := mat.Max(vec)
+
 	sum := 0.0
 	for i := 0; i < vec.Len(); i++ {
-		sum += math.Exp(vec.AtVec(i))
+		sum += math.Exp(vec.AtVec(i) - max)
 	}
 
+	// NEED TO APPLY MAX-NORMALIZATION HERE
+
 	for i := 0; i < vec.Len(); i++ {
-		new.SetVec(i, math.Exp(vec.AtVec(i))/sum)
+		new.SetVec(i, math.Exp(vec.AtVec(i) - max)/sum)
 	}
 
 	return new
