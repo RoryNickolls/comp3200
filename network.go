@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat/distuv"
 )
@@ -19,7 +20,7 @@ func (nn *Network) WithLayer(in int, out int, activation string) *Network {
 	return nn
 }
 
-func (nn *Network) OutputLayer() *layer {
+func (nn *Network) outputLayer() *layer {
 	return &nn.layers[len(nn.layers)-1]
 }
 
@@ -28,7 +29,7 @@ func (nn *Network) Predict(input *mat.VecDense) *mat.VecDense {
 	for j := 1; j < len(nn.layers); j++ {
 		nn.layers[j].feed(nn.layers[j-1].output)
 	}
-	return nn.OutputLayer().output
+	return nn.outputLayer().output
 }
 
 func (nn *Network) Train(trainData []Record, eta float64) {
@@ -49,7 +50,7 @@ func (nn *Network) Train(trainData []Record, eta float64) {
 			biasDeltas = append(biasDeltas, mat.NewVecDense(nn.layers[j].out, nil))
 		}
 
-		dEdI := mat.NewVecDense(nn.OutputLayer().out, nil)
+		dEdI := mat.NewVecDense(nn.outputLayer().out, nil)
 
 		// Find delta for each neuron
 		for j := len(nn.layers) - 1; j > 0; j-- {
@@ -199,7 +200,7 @@ func newLayer(in int, out int, activationFunction string) layer {
 func (layer *layer) feed(input *mat.VecDense) {
 	activation := mat.NewVecDense(layer.out, nil)
 	activation.MulVec(layer.weights, input)
-	//activation.AddVec(activation, layer.biases)
+	activation.AddVec(activation, layer.biases)
 	layer.activation = activation
 
 	if layer.activationFunction == "sigmoid" {
