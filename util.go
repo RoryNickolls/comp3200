@@ -33,14 +33,14 @@ func loadData() *Data {
 	var trainRecords []Record
 	for i := 0; i < train.Count(); i++ {
 		img, label := train.Get(i)
-		trainRecords = append(trainRecords, NewRecord(rawImageToInputVector(img), int(label)))
+		trainRecords = append(trainRecords, NewRecord(*rawImageToInputVector(img), int(label)))
 	}
 
 	// Create testing records
 	var testRecords []Record
 	for i := 0; i < test.Count(); i++ {
 		img, label := test.Get(i)
-		testRecords = append(testRecords, NewRecord(rawImageToInputVector(img), int(label)))
+		testRecords = append(testRecords, NewRecord(*rawImageToInputVector(img), int(label)))
 	}
 
 	// Return data

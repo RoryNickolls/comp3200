@@ -37,10 +37,10 @@ func (nn *Network) Train(trainData []Record, eta float64) {
 		record := trainData[r]
 
 		// Forward propagation
-		nn.Predict(record.data)
+		nn.Predict(&record.Data)
 
 		// Get target prediction
-		target := record.expected
+		target := record.Expected
 
 		// Initialise error deltas
 		var weightDeltas []*mat.Dense
@@ -149,8 +149,8 @@ func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 	// Calculate average MSE
 	err := 0.0
 	for _, record := range testData {
-		prediction := nn.Predict(record.data)
-		expected := record.expected
+		prediction := nn.Predict(&record.Data)
+		expected := &record.Expected
 		max := 0
 		for i := 0; i < prediction.Len(); i++ {
 			if prediction.AtVec(i) > prediction.AtVec(max) {
