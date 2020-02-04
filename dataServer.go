@@ -24,11 +24,14 @@ func LaunchDataServer(address string) {
 		fmt.Println("ERR:", err)
 	}
 
-	ds := DataServer{nil}
+	tempData := loadData()
+	tempData.Train = tempData.Train[:10]
+	tempData.Test = tempData.Test[:1]
+	ds := DataServer{tempData}
 
 	// Initially receive all data
-	fmt.Println("Waiting to be assigned data partition...")
-	ds.receiveData(l)
+	fmt.Println("Waiting to be assigned data partition")
+	//ds.receiveData(l)
 	for {
 		// Wait for a partition request
 		conn := ds.waitForRequest(l)
