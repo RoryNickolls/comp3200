@@ -13,10 +13,10 @@ func main() {
 	var parameterAddress string
 
 	flag.StringVar(&address, "host", "localhost:8888", "Host address")
-	flag.StringVar(&nodeType, "type", "model", "Type of entity this is: parameter, model, data")
+	flag.StringVar(&nodeType, "type", "none", "Type of entity this is: parameter, model, data")
 
-	flag.StringVar(&dataAddress, "dataAddress", "localhost:8888", "Address of the data server for this model")
-	flag.StringVar(&parameterAddress, "parameterAddress", "localhost:8888", "Address of the parameter server")
+	flag.StringVar(&dataAddress, "data", "localhost:8888", "Address of the data server for this model")
+	flag.StringVar(&parameterAddress, "parameter", "localhost:8888", "Address of the parameter server")
 
 	flag.Parse()
 
@@ -29,6 +29,9 @@ func main() {
 		break
 	case "data":
 		LaunchDataServer(address)
+		break
+	case "none":
+		TrainStandardNetwork()
 		break
 	}
 }

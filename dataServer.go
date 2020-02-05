@@ -3,18 +3,23 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
+	"math/rand"
 	"net"
-	"bufio"
-	"strings"
 )
 
 type DataServer struct {
 	data *Data
 }
 
-func (ds *DataServer) servePartition(conn net.Conn) {
+func (ds *DataServer) servePartition(messenger Messenger) {
+	var randTrain []Record
+	tempData := Data{}
+	for i := 0; i < 10000; i++ {
+		randTrain = append(randTrain, ds.data.Train[int(rand.Float64()*float64(len(ds.data.Train)))])
+	}
+	tempData.Train = randTrain
 	fmt.Println("Serving data")
-	gob.NewEncoder(conn).Encode(ds.data)
+	messenger.SendInterface(tempData)
 }
 
 func LaunchDataServer(address string) {
@@ -24,41 +29,32 @@ func LaunchDataServer(address string) {
 		fmt.Println("ERR:", err)
 	}
 
-	tempData := loadData()
-	tempData.Train = tempData.Train[:10]
-	tempData.Test = tempData.Test[:1]
-	ds := DataServer{tempData}
+	ds := DataServer{loadData()}
 
 	// Initially receive all data
 	fmt.Println("Waiting to be assigned data partition")
 	//ds.receiveData(l)
+
+	// Wait for a model replica to connect
+	conn, _ := l.Accept()
+	messenger := NewMessenger(conn)
 	for {
 		// Wait for a partition request
-		conn := ds.waitForRequest(l)
+		ds.waitForRequest(messenger)
 
-		// Serve request asynchronously
-		go ds.servePartition(conn)
+		// Serve request
+		ds.servePartition(messenger)
 	}
 }
 
-func (ds *DataServer) waitForRequest(l net.Listener) net.Conn {
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			fmt.Println("ERR:", err)
-		}
+func (ds *DataServer) waitForRequest(messenger Messenger) {
+	fmt.Println("Waiting for data request")
+	var msg string
+	messenger.ReceiveMessage(&msg)
 
-		// Read a message from the incoming connection
-		msg, err := bufio.NewReader(conn).ReadString('\n')
-		if err != nil {
-			fmt.Println("ERR:", err)
-		}
-
-		// If message reads REQ then exit and serve the partition
-		if strings.TrimSpace(msg) == "REQ" {
-			fmt.Println("Received data request")
-			return conn
-		}
+	// If message reads REQ then exit and serve the partition
+	if msg == "REQ" {
+		fmt.Println("Received data request")
 	}
 }
 

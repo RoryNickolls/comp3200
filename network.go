@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 
 	"gonum.org/v1/gonum/mat"
@@ -8,16 +9,46 @@ import (
 )
 
 type Network struct {
-	layers []layer
+	learningRate float64
+	layers       []layer
 }
 
 func NewNetwork() *Network {
-	return &Network{}
+	return &Network{learningRate: 0.1}
 }
 
 func (nn *Network) WithLayer(in int, out int, activation string) *Network {
 	nn.layers = append(nn.layers, newLayer(in, out, activation))
 	return nn
+}
+
+func (nn *Network) WithLearningRate(eta float64) *Network {
+	nn.learningRate = eta
+	return nn
+}
+
+func (nn *Network) SetParameters(weights []mat.Dense, biases []mat.VecDense) {
+	if len(weights) != len(nn.layers) || len(biases) != len(nn.layers) {
+		fmt.Println("Error setting network weights. Not enough weight matrices supplied.")
+		return
+	}
+
+	for i := 0; i < len(nn.layers); i++ {
+		nn.layers[i].weights = &weights[i]
+		nn.layers[i].biases = &biases[i]
+	}
+}
+
+func (nn *Network) Parameters() ([]mat.Dense, []mat.VecDense) {
+	var weights []mat.Dense
+	var biases []mat.VecDense
+
+	for i := 0; i < len(nn.layers); i++ {
+		weights = append(weights, *nn.layers[i].weights)
+		biases = append(biases, *nn.layers[i].biases)
+	}
+
+	return weights, biases
 }
 
 func (nn *Network) outputLayer() *layer {
@@ -32,7 +63,27 @@ func (nn *Network) Predict(input *mat.VecDense) *mat.VecDense {
 	return nn.outputLayer().output
 }
 
-func (nn *Network) Train(trainData []Record, eta float64) {
+func (nn *Network) UpdateWithDeltas(weightDeltas []mat.Dense, biasDeltas []mat.VecDense) {
+	// Update each layers weights with deltas
+	for j := 0; j < len(nn.layers); j++ {
+		layer := nn.layers[j]
+		weightDeltas[j].Scale(nn.learningRate, &weightDeltas[j])
+		biasDeltas[j].ScaleVec(nn.learningRate, &biasDeltas[j])
+		layer.weights.Add(layer.weights, &weightDeltas[j])
+		layer.biases.AddVec(layer.biases, &biasDeltas[j])
+	}
+}
+
+func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) { 
+
+	// Initialise error deltas
+	var weightDeltas []mat.Dense
+	var biasDeltas []mat.VecDense
+	for j := 0; j < len(nn.layers); j++ {
+		weightDeltas = append(weightDeltas, *mat.NewDense(nn.layers[j].out, nn.layers[j].in, nil))
+		biasDeltas = append(biasDeltas, *mat.NewVecDense(nn.layers[j].out, nil))
+	}
+
 	for r := 0; r < len(trainData); r++ {
 		record := trainData[r]
 
@@ -41,14 +92,6 @@ func (nn *Network) Train(trainData []Record, eta float64) {
 
 		// Get target prediction
 		target := record.Expected
-
-		// Initialise error deltas
-		var weightDeltas []*mat.Dense
-		var biasDeltas []*mat.VecDense
-		for j := 0; j < len(nn.layers); j++ {
-			weightDeltas = append(weightDeltas, mat.NewDense(nn.layers[j].out, nn.layers[j].in, nil))
-			biasDeltas = append(biasDeltas, mat.NewVecDense(nn.layers[j].out, nil))
-		}
 
 		dEdI := mat.NewVecDense(nn.outputLayer().out, nil)
 
@@ -128,19 +171,25 @@ func (nn *Network) Train(trainData []Record, eta float64) {
 				dEdI = dEdINew
 			}
 
-			weightDeltas[j] = deltaW
-			biasDeltas[j] = deltaB
-		}
-
-		// Update each layers weights with deltas
-		for j := 0; j < len(nn.layers); j++ {
-			layer := nn.layers[j]
-			weightDeltas[j].Scale(eta, weightDeltas[j])
-			biasDeltas[j].ScaleVec(eta, biasDeltas[j])
-			layer.weights.Add(layer.weights, weightDeltas[j])
-			layer.biases.AddVec(layer.biases, biasDeltas[j])
+			weightDeltas[j].Add(&weightDeltas[j], deltaW)
+			biasDeltas[j].AddVec(&biasDeltas[j], deltaB)
 		}
 	}
+
+	
+	for j := 0; j < len(nn.layers); j++ {
+		weightDeltas[j].Scale(1.0 / float64(len(trainData)), &weightDeltas[j])
+		biasDeltas[j].ScaleVec(1.0 / float64(len(trainData)), &biasDeltas[j])
+	}
+
+
+	return weightDeltas, biasDeltas
+}
+
+func (nn *Network) TrainAndUpdate(trainData []Record) ([]mat.Dense, []mat.VecDense) {
+	weightDeltas, biasDeltas := nn.Train(trainData)
+	nn.UpdateWithDeltas(weightDeltas, biasDeltas)
+	return weightDeltas, biasDeltas
 }
 
 func (nn *Network) Evaluate(testData []Record) (float64, float64) {

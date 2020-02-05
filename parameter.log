@@ -1,0 +1,5 @@
+unexpected fault address 0x7f35e8d44f38
+fatal error: fault
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x7f35e8d44f38 pc=0x7f35e8d44f38]
+
+goroutine 1 [running]:

@@ -1,46 +1,73 @@
 package main
 
 import (
-	"net"
 	"fmt"
-	"bufio"
-	"encoding/gob"
+
+	"gonum.org/v1/gonum/mat"
 )
 
 type ModelReplica struct {
-	data Data
+	model *Network
+	data  Data
 }
 
 func LaunchModelReplica(address string, dataAddress string, parameterAddress string) {
- 
+
 	mr := ModelReplica{}
+	mr.model = NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax")
 
-	conn, err := net.Dial("tcp4", dataAddress)
-	if err != nil {
-		fmt.Println("ERR:", err)
+	//dataMsg := Connect(dataAddress)
+	paramMsg := Connect(parameterAddress)
+
+	tempData := loadData()
+
+	for {
+		//dataMsg.SendMessage("REQ")
+		//mr.getData(dataMsg)
+		miniBatches := tempData.GetMiniBatches(100)
+
+		fmt.Println("Received data from data server")
+
+		// Perform training on data
+		// Update model before each mini-batch, send deltas to parameter server after
+		for i := 0; i < len(miniBatches); i++ {
+			mr.receiveParameters(paramMsg)
+			weightDeltas, biasDeltas := mr.model.Train(miniBatches[i])
+			mr.sendDeltas(paramMsg, weightDeltas, biasDeltas)
+		}
 	}
-
-	c := make(chan Data)
-	go mr.getData(conn, c)
-
-	writer := bufio.NewWriter(conn)
-	writer.WriteString("REQ\n")
-	writer.Flush()
-
-	// Wait to receive data back
-	<- c
-	fmt.Println("Received data from data server")
-
-	// now perform the training, and update parameter server!!
 }
 
-func (mr *ModelReplica) getData(conn net.Conn, c chan Data) {
+func (mr *ModelReplica) getData(messenger Messenger) {
 	fmt.Println("Waiting for data")
+
 	var data Data
-	err := gob.NewDecoder(conn).Decode(&data)
-	if err != nil {
-		fmt.Println("ERR:", err)
-	}
+	messenger.ReceiveInterface(&data)
 	mr.data = data
-	c <- data
+}
+
+func (mr *ModelReplica) receiveParameters(messenger Messenger) {
+	fmt.Println("Requesting parameters")
+
+	// Send request to parameter server
+	messenger.SendMessage("REQ")
+
+	// Retrieve weights and biases for each layer from parameter server
+	var weights []mat.Dense
+	var biases []mat.VecDense
+
+	messenger.ReceiveInterface(&weights)
+	messenger.ReceiveInterface(&biases)
+
+	mr.model.SetParameters(weights, biases)
+	fmt.Println("Model updated with most recent parameters")
+}
+
+func (mr *ModelReplica) sendDeltas(messenger Messenger, weights []mat.Dense, biases []mat.VecDense) {
+
+	// send weight and bias deltas to parameter server
+	messenger.SendMessage("UPD")
+	messenger.SendInterface(weights)
+	messenger.SendInterface(biases)
+	fmt.Println("Sent updated deltas")
 }

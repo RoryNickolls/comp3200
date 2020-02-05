@@ -3,11 +3,23 @@ package main
 import (
 	"fmt"
 	"net"
-	"bufio"
-	"strings"
+
+	"gonum.org/v1/gonum/mat"
 )
 
+type ParameterServer struct {
+	model *Network
+}
+
+var data *Data
+
 func LaunchParameterServer(address string) {
+
+	data = loadData()
+
+	fmt.Println("Launching parameter server")
+	ps := ParameterServer{}
+	ps.model = NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax")
 
 	l, err := net.Listen("tcp4", address)
 	if err != nil {
@@ -21,31 +33,58 @@ func LaunchParameterServer(address string) {
 			fmt.Println("ERR:", err)
 			return
 		}
+		go ps.handleConnection(NewMessenger(conn))
+	}
+}
 
-		msg, err := bufio.NewReader(conn).ReadString('\n')
-		if err != nil {
-			fmt.Println("ERR:", err)
-			return
-		}
+func (ps *ParameterServer) handleConnection(messenger Messenger) {
+	for {
+		var cmd string
+		messenger.ReceiveMessage(&cmd)
 
-		switch strings.TrimSpace(msg) {
-			// Requesting parameters
+		switch cmd {
+		// Requesting parameters
 		case "REQ":
-			go handleParameterRequest(conn)
+			ps.handleParameterRequest(messenger)
 			break
 			// Updating parameters
 		case "UPD":
-			go handleParameterUpdate(conn)
+			ps.handleParameterUpdate(messenger)
 			break
 		}
 	}
 }
 
-func handleParameterRequest(conn net.Conn) {
+func (ps *ParameterServer) handleParameterRequest(messenger Messenger) {
+	//fmt.Println("Received request for parameters")
+	weights, biases := ps.model.Parameters()
+
 	// send current state of weights and biases
+	messenger.SendInterface(weights)
+	messenger.SendInterface(biases)
 }
 
-func handleParameterUpdate(conn net.Conn) {
+var updates int
+
+func (ps *ParameterServer) handleParameterUpdate(messenger Messenger) {
+
+	//fmt.Println("Updating parameters with deltas")
+
 	// receive deltas for weights and biases
-	// update master model
+	var weightDeltas []mat.Dense
+	var biasDeltas []mat.VecDense
+
+	messenger.ReceiveInterface(&weightDeltas)
+	messenger.ReceiveInterface(&biasDeltas)
+
+	// update master model with deltas
+	ps.model.UpdateWithDeltas(weightDeltas, biasDeltas)
+	updates++
+	//fmt.Println("Updated parameters")
+
+	if updates % 600 == 0 {
+		fmt.Println(ps.model.Evaluate(data.Test))
+	}
+
+
 }
