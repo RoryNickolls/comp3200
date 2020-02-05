@@ -1,6 +1,0 @@
-Waiting to be assigned data partition
-unexpected fault address 0x0
-fatal error: fault
-[signal SIGSEGV: segmentation violation code=0x80 addr=0x0 pc=0x422096]
-
-goroutine 2 [running]:
