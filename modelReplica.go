@@ -16,15 +16,13 @@ func LaunchModelReplica(address string, dataAddress string, parameterAddress str
 	mr := ModelReplica{}
 	mr.model = NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax")
 
-	//dataMsg := Connect(dataAddress)
+	dataMsg := Connect(dataAddress)
 	paramMsg := Connect(parameterAddress)
 
-	tempData := loadData()
-
 	for {
-		//dataMsg.SendMessage("REQ")
-		//mr.getData(dataMsg)
-		miniBatches := tempData.GetMiniBatches(100)
+		dataMsg.SendMessage("REQ")
+		mr.getData(dataMsg)
+		miniBatches := mr.data.GetMiniBatches(100)
 
 		fmt.Println("Received data from data server")
 

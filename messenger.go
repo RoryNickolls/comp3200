@@ -35,7 +35,7 @@ func (m *Messenger) ReceiveInterface(v interface{}) {
 
 func (m *Messenger) ReceiveMessage(cmd *string) {
 	var temp string
-
+	
 	err := m.dec.Decode(&temp)
 	if err != nil {
 		fmt.Println("Error receiving command", err)

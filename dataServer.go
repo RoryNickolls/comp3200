@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/gob"
 	"fmt"
 	"math/rand"
 	"net"
@@ -29,15 +28,21 @@ func LaunchDataServer(address string) {
 		fmt.Println("ERR:", err)
 	}
 
-	ds := DataServer{loadData()}
+	ds := DataServer{}
 
 	// Initially receive all data
-	fmt.Println("Waiting to be assigned data partition")
-	//ds.receiveData(l)
+	fmt.Println("Waiting to be assigned data partition...")
+	var data Data
+	conn, err := l.Accept()
+	messenger := NewMessenger(conn)
+	messenger.ReceiveInterface(&data)
+	ds.data = &data
+	fmt.Println("Assigned data partition")
 
 	// Wait for a model replica to connect
-	conn, _ := l.Accept()
-	messenger := NewMessenger(conn)
+	fmt.Println("Waiting for model replica...")
+	conn, _ = l.Accept()
+	messenger = NewMessenger(conn)
 	for {
 		// Wait for a partition request
 		ds.waitForRequest(messenger)
@@ -56,14 +61,4 @@ func (ds *DataServer) waitForRequest(messenger Messenger) {
 	if msg == "REQ" {
 		fmt.Println("Received data request")
 	}
-}
-
-func (ds *DataServer) receiveData(l net.Listener) {
-	conn, err := l.Accept()
-	if err != nil {
-		fmt.Println("ERR:", err)
-	}
-
-	gob.NewDecoder(conn).Decode(ds.data)
-	fmt.Println("Received", ds.data)
 }
