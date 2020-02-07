@@ -12,6 +12,8 @@ func main() {
 	// Model replica parameters
 	var dataAddress string
 	var parameterAddress string
+	var fetch int
+	var push int
 
 	var dataServers string
 
@@ -20,6 +22,8 @@ func main() {
 
 	flag.StringVar(&dataAddress, "data", "localhost:8888", "Address of the data server for this model")
 	flag.StringVar(&parameterAddress, "parameter", "localhost:8888", "Address of the parameter server")
+	flag.IntVar(&fetch, "fetch", 10, "Number of mini-batches to fetch at a time")
+	flag.IntVar(&push, "push", 10, "Number of mini-batches to process before sending updates")
 
 	flag.StringVar(&dataServers, "dataServers", "", "Comma-separated addresses of data servers to provision")
 
@@ -30,7 +34,7 @@ func main() {
 		LaunchParameterServer(address)
 		break
 	case "model":
-		LaunchModelReplica(address, dataAddress, parameterAddress)
+		LaunchModelReplica(address, dataAddress, parameterAddress, fetch, push)
 		break
 	case "data":
 		LaunchDataServer(address)

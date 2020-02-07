@@ -48,7 +48,6 @@ func (ps *ParameterServer) handleConnection(messenger Messenger) {
 		case "REQ":
 			ps.handleParameterRequest(messenger)
 			break
-			// Updating parameters
 		case "UPD":
 			ps.handleParameterUpdate(messenger)
 			break

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strconv"
+	"strings"
 )
 
 type DataServer struct {
@@ -47,8 +49,7 @@ func LaunchDataServer(address string) {
 	messenger := NewMessenger(conn)
 	messenger.ReceiveInterface(&data)
 
-	// Use standard batch size of 100
-	ds.miniBatches = data.GetMiniBatches(100)
+	ds.miniBatches = data.GetMiniBatches(50)
 	fmt.Println("Assigned data partition")
 
 	// Wait for a model replica to connect
@@ -59,8 +60,11 @@ func LaunchDataServer(address string) {
 		// Wait for a partition request telling us how many minibatches to send
 		n := ds.waitForRequest(messenger)
 
-		// Serve request
-		ds.serveMiniBatches(messenger, n)
+		if n > 0 {
+
+			// Serve request
+			ds.serveMiniBatches(messenger, n)
+		}
 	}
 }
 
@@ -69,10 +73,14 @@ func (ds *DataServer) waitForRequest(messenger Messenger) int {
 	var msg string
 	messenger.ReceiveMessage(&msg)
 
+	parts := strings.Split(msg, " ")
+
 	// If message reads REQ then exit and serve the partition
-	if msg == "REQ" {
-		fmt.Println("Received data request")
+	if parts[0] == "REQ" {
+		count, _ := strconv.ParseInt(parts[1], 10, 32)
+		fmt.Println("Received data request for", count, "batches")
+		return int(count)
 	}
 
-	return 30
+	return 0
 }

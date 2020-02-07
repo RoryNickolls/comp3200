@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 
 	"gonum.org/v1/gonum/mat"
 )
@@ -9,11 +10,13 @@ import (
 type ModelReplica struct {
 	model *Network
 	data  Data
+	fetch int
+	push  int
 }
 
-func LaunchModelReplica(address string, dataAddress string, parameterAddress string) {
+func LaunchModelReplica(address string, dataAddress string, parameterAddress string, fetch int, push int) {
 
-	mr := ModelReplica{}
+	mr := ModelReplica{fetch: fetch, push: push}
 	dataMsg := Connect(dataAddress)
 	paramMsg := Connect(parameterAddress)
 
@@ -27,7 +30,7 @@ func LaunchModelReplica(address string, dataAddress string, parameterAddress str
 	for {
 
 		fmt.Println("Requesting mini-batches...")
-		dataMsg.SendMessage("REQ")
+		dataMsg.SendMessage("REQ " + strconv.Itoa(fetch))
 
 		var miniBatches [][]Record
 		dataMsg.ReceiveInterface(&miniBatches)
