@@ -1,20 +1,37 @@
 #!/bin/bash
+
+trap "kill 0" EXIT
+
 echo "Building project..."
 go build -o ./build
 
 exe=./build/comp3200
 
-echo "Creating parameter server"
-./build/comp3200 -type=parameter -host=:8889
+parameter=":8889"
 
-sleep 1
+replicas=(":8900" ":8901" ":8902" ":8903" ":8904" ":8905" ":8906" ":8907")
+data=(":8890" ":8891" ":8892" ":8893" ":8894" ":8895" ":8896" ":8897")
 
-# Data servers are on ports 8890-8899
+joined_data=":8890,:8891,:8892,:8893,:8894,:8895,:8896,:8897"
+
 echo "Creating data servers"
-./build/comp3200 -type=data -host=:8890
+for a in ${data[@]}; do
+    $exe -type=data -host=$a &
+done
 
 sleep 1
 
-# Model replicas are on ports 8900-8909
+echo "Provisioning data servers"
+$exe -type=provision -dataServers=$joined_data
+
+echo "Creating parameter server"
+$exe -type=parameter -host=$parameter &> log &
+
+sleep 3
+
 echo "Creating model replicas"
-./build/comp3200 -type=model -host=:8900 -data=:8890 -parameter=:8889
+for i in ${!replicas[@]}; do
+    $exe -type=model -host=${replicas[i]} -data=${data[i]} -parameter=$parameter &
+done
+
+wait

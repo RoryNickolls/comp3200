@@ -7,18 +7,28 @@ import (
 )
 
 type DataServer struct {
-	data *Data
+	miniBatches [][]Record
+	index       int
 }
 
-func (ds *DataServer) servePartition(messenger Messenger) {
-	var randTrain []Record
-	tempData := Data{}
-	for i := 0; i < 10000; i++ {
-		randTrain = append(randTrain, ds.data.Train[int(rand.Float64()*float64(len(ds.data.Train)))])
+func (ds *DataServer) serveMiniBatches(messenger Messenger, n int) {
+	var batches [][]Record
+	count := 0
+	for count < n {
+		index := ds.index + count
+		if index >= len(ds.miniBatches) {
+			index = 0
+			rand.Shuffle(len(ds.miniBatches), func(i, j int) { ds.miniBatches[i], ds.miniBatches[j] = ds.miniBatches[j], ds.miniBatches[i] })
+		}
+		batches = append(batches, ds.miniBatches[index])
+		count++
 	}
-	tempData.Train = randTrain
+
+	// Otherwise serve the minibatches
 	fmt.Println("Serving data")
-	messenger.SendInterface(tempData)
+	messenger.SendInterface(batches)
+
+	ds.index += count
 }
 
 func LaunchDataServer(address string) {
@@ -36,7 +46,9 @@ func LaunchDataServer(address string) {
 	conn, err := l.Accept()
 	messenger := NewMessenger(conn)
 	messenger.ReceiveInterface(&data)
-	ds.data = &data
+
+	// Use standard batch size of 100
+	ds.miniBatches = data.GetMiniBatches(100)
 	fmt.Println("Assigned data partition")
 
 	// Wait for a model replica to connect
@@ -44,15 +56,15 @@ func LaunchDataServer(address string) {
 	conn, _ = l.Accept()
 	messenger = NewMessenger(conn)
 	for {
-		// Wait for a partition request
-		ds.waitForRequest(messenger)
+		// Wait for a partition request telling us how many minibatches to send
+		n := ds.waitForRequest(messenger)
 
 		// Serve request
-		ds.servePartition(messenger)
+		ds.serveMiniBatches(messenger, n)
 	}
 }
 
-func (ds *DataServer) waitForRequest(messenger Messenger) {
+func (ds *DataServer) waitForRequest(messenger Messenger) int {
 	fmt.Println("Waiting for data request")
 	var msg string
 	messenger.ReceiveMessage(&msg)
@@ -61,4 +73,6 @@ func (ds *DataServer) waitForRequest(messenger Messenger) {
 	if msg == "REQ" {
 		fmt.Println("Received data request")
 	}
+
+	return 30
 }

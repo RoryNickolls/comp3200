@@ -8,22 +8,44 @@ import (
 	"gonum.org/v1/gonum/stat/distuv"
 )
 
+type NetworkConfig struct {
+	LearningRate float64
+	LayerConfigs []LayerConfig
+}
+
+type LayerConfig struct {
+	In int
+	Out int
+	Activation string
+}
+
 type Network struct {
-	learningRate float64
+	config NetworkConfig
 	layers       []layer
 }
 
 func NewNetwork() *Network {
-	return &Network{learningRate: 0.1}
+	return &Network{config: NetworkConfig{ LearningRate: 0.01 } }
+}
+
+func NewNetworkFromConfig(config NetworkConfig) *Network {
+	network := NewNetwork()
+	for _, layerConfig := range config.LayerConfigs {
+		network = network.WithLayer(layerConfig.In, layerConfig.Out, layerConfig.Activation)
+	}
+	network = network.WithLearningRate(config.LearningRate)
+	return network
 }
 
 func (nn *Network) WithLayer(in int, out int, activation string) *Network {
-	nn.layers = append(nn.layers, newLayer(in, out, activation))
+	layerConfig := LayerConfig { in, out, activation }
+	nn.layers = append(nn.layers, newLayerFromConfig(layerConfig))
+	nn.config.LayerConfigs = append(nn.config.LayerConfigs, layerConfig)
 	return nn
 }
 
 func (nn *Network) WithLearningRate(eta float64) *Network {
-	nn.learningRate = eta
+	nn.config.LearningRate = eta
 	return nn
 }
 
@@ -67,8 +89,8 @@ func (nn *Network) UpdateWithDeltas(weightDeltas []mat.Dense, biasDeltas []mat.V
 	// Update each layers weights with deltas
 	for j := 0; j < len(nn.layers); j++ {
 		layer := nn.layers[j]
-		weightDeltas[j].Scale(nn.learningRate, &weightDeltas[j])
-		biasDeltas[j].ScaleVec(nn.learningRate, &biasDeltas[j])
+		weightDeltas[j].Scale(nn.config.LearningRate, &weightDeltas[j])
+		biasDeltas[j].ScaleVec(nn.config.LearningRate, &biasDeltas[j])
 		layer.weights.Add(layer.weights, &weightDeltas[j])
 		layer.biases.AddVec(layer.biases, &biasDeltas[j])
 	}
@@ -244,6 +266,10 @@ func newLayer(in int, out int, activationFunction string) layer {
 	activation := mat.NewVecDense(out, nil)
 	output := mat.NewVecDense(out, nil)
 	return layer{in, out, activationFunction, weights, activation, output, biases}
+}
+
+func newLayerFromConfig(config LayerConfig) layer {
+	return newLayer(config.In, config.Out, config.Activation)
 }
 
 func (layer *layer) feed(input *mat.VecDense) {

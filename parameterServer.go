@@ -19,7 +19,7 @@ func LaunchParameterServer(address string) {
 
 	fmt.Println("Launching parameter server")
 	ps := ParameterServer{}
-	ps.model = NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax")
+	ps.model = NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
 
 	l, err := net.Listen("tcp4", address)
 	if err != nil {
@@ -38,6 +38,7 @@ func LaunchParameterServer(address string) {
 }
 
 func (ps *ParameterServer) handleConnection(messenger Messenger) {
+	fmt.Println("New model replica connected")
 	for {
 		var cmd string
 		messenger.ReceiveMessage(&cmd)
@@ -50,6 +51,9 @@ func (ps *ParameterServer) handleConnection(messenger Messenger) {
 			// Updating parameters
 		case "UPD":
 			ps.handleParameterUpdate(messenger)
+			break
+		case "MDL":
+			ps.handleModelRequest(messenger)
 			break
 		}
 	}
@@ -64,11 +68,13 @@ func (ps *ParameterServer) handleParameterRequest(messenger Messenger) {
 	messenger.SendInterface(biases)
 }
 
+func (ps *ParameterServer) handleModelRequest(messenger Messenger) {
+	messenger.SendInterface(ps.model.config)
+}
+
 var updates int
 
 func (ps *ParameterServer) handleParameterUpdate(messenger Messenger) {
-
-	//fmt.Println("Updating parameters with deltas")
 
 	// receive deltas for weights and biases
 	var weightDeltas []mat.Dense
@@ -80,10 +86,10 @@ func (ps *ParameterServer) handleParameterUpdate(messenger Messenger) {
 	// update master model with deltas
 	ps.model.UpdateWithDeltas(weightDeltas, biasDeltas)
 	updates++
-	//fmt.Println("Updated parameters")
 
 	if updates % 600 == 0 {
-		fmt.Println(ps.model.Evaluate(data.Test))
+		loss, accuracy := ps.model.Evaluate(data.Test)
+		fmt.Printf("%.4f,%.4f\n", loss, accuracy)
 	}
 
 
