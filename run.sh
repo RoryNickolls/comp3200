@@ -27,7 +27,7 @@ echo "Provisioning data servers"
 $exe -type=provision -dataServers=$joined_data
 
 echo "Creating parameter server"
-$exe -type=parameter -host=$parameter &> log &
+$exe -type=parameter -host=$parameter &> output/log &
 
 sleep 3
 

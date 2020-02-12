@@ -15,13 +15,12 @@ type ParameterServer struct {
 
 var data *network.Data
 
-func LaunchParameterServer(address string) {
+func LaunchParameterServer(address string, model *network.Network) {
 
 	data = network.LoadData()
 
 	fmt.Println("Launching parameter server")
-	ps := ParameterServer{}
-	ps.model = network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
+	ps := ParameterServer{model}
 
 	l, err := net.Listen("tcp4", address)
 	if err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"comp3200/downpour"
+	"comp3200/network"
 	"flag"
 	"strings"
 )
@@ -32,7 +33,8 @@ func main() {
 
 	switch nodeType {
 	case "parameter":
-		downpour.LaunchParameterServer(address)
+		network := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
+		downpour.LaunchParameterServer(address, network)
 		break
 	case "model":
 		downpour.LaunchModelReplica(address, dataAddress, parameterAddress, fetch, push)
