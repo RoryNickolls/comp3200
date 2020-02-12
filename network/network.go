@@ -66,8 +66,14 @@ func (nn *Network) Parameters() ([]mat.Dense, []mat.VecDense) {
 	var biases []mat.VecDense
 
 	for i := 0; i < len(nn.layers); i++ {
-		weights = append(weights, *nn.layers[i].weights)
-		biases = append(biases, *nn.layers[i].biases)
+		var w mat.Dense
+		w.CloneFrom(nn.layers[i].weights)
+
+		var b mat.VecDense
+		b.CloneVec(nn.layers[i].biases)
+
+		weights = append(weights, w)
+		biases = append(biases, b)
 	}
 
 	return weights, biases
