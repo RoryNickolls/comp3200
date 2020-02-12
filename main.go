@@ -1,6 +1,7 @@
 package main
 
 import (
+	"comp3200/downpour"
 	"flag"
 	"strings"
 )
@@ -31,17 +32,17 @@ func main() {
 
 	switch nodeType {
 	case "parameter":
-		LaunchParameterServer(address)
+		downpour.LaunchParameterServer(address)
 		break
 	case "model":
-		LaunchModelReplica(address, dataAddress, parameterAddress, fetch, push)
+		downpour.LaunchModelReplica(address, dataAddress, parameterAddress, fetch, push)
 		break
 	case "data":
-		LaunchDataServer(address)
+		downpour.LaunchDataServer(address)
 		break
 	case "provision":
 		addresses := strings.Split(dataServers, ",")
-		ProvisionData(addresses)
+		downpour.ProvisionData(addresses)
 		break
 	case "none":
 		TrainStandardNetwork()
