@@ -15,9 +15,12 @@ type client struct {
 
 func LaunchClient(paramAddress string) {
 	data := network.LoadData()
-	minibatches := data.GetMiniBatches(50)
+
+	minibatchSize := 50
+	minibatches := data.GetMiniBatches(minibatchSize)
 	idx := 0
 	batchesPerUpdate := 7
+	epochs := 0
 
 	param := messenger.Connect(paramAddress)
 
@@ -51,8 +54,9 @@ func LaunchClient(paramAddress string) {
 
 			idx++
 			if idx >= len(minibatches) {
-				minibatches = data.GetMiniBatches(30)
+				minibatches = data.GetMiniBatches(minibatchSize)
 				idx = 0
+				epochs++
 			}
 		}
 
