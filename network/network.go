@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 	"math"
+	"sync"
 
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat/distuv"
@@ -22,6 +23,7 @@ type LayerConfig struct {
 type Network struct {
 	Config NetworkConfig
 	layers []layer
+	mutex  sync.Mutex
 }
 
 func NewNetwork() *Network {
@@ -50,6 +52,7 @@ func (nn *Network) WithLearningRate(eta float64) *Network {
 }
 
 func (nn *Network) SetParameters(weights []mat.Dense, biases []mat.VecDense) {
+	nn.mutex.Lock()
 	if len(weights) != len(nn.layers) || len(biases) != len(nn.layers) {
 		fmt.Println("Error setting network weights. Not enough weight matrices supplied.")
 		return
@@ -59,6 +62,7 @@ func (nn *Network) SetParameters(weights []mat.Dense, biases []mat.VecDense) {
 		nn.layers[i].weights = &weights[i]
 		nn.layers[i].biases = &biases[i]
 	}
+	nn.mutex.Unlock()
 }
 
 func (nn *Network) Parameters() ([]mat.Dense, []mat.VecDense) {
@@ -92,6 +96,7 @@ func (nn *Network) Predict(input *mat.VecDense) *mat.VecDense {
 }
 
 func (nn *Network) UpdateWithDeltas(weightDeltas []mat.Dense, biasDeltas []mat.VecDense) {
+	nn.mutex.Lock()
 	// Update each layers weights with deltas
 	for j := 0; j < len(nn.layers); j++ {
 		layer := nn.layers[j]
@@ -100,6 +105,7 @@ func (nn *Network) UpdateWithDeltas(weightDeltas []mat.Dense, biasDeltas []mat.V
 		layer.weights.Add(layer.weights, &weightDeltas[j])
 		layer.biases.AddVec(layer.biases, &biasDeltas[j])
 	}
+	nn.mutex.Unlock()
 }
 
 func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
