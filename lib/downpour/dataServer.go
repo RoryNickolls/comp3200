@@ -1,8 +1,8 @@
 package downpour
 
 import (
-	"comp3200/messenger"
-	"comp3200/network"
+	"comp3200/lib/messenger"
+	"comp3200/lib/network"
 	"fmt"
 	"math/rand"
 	"net"

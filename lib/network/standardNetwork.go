@@ -1,15 +1,14 @@
-package main
+package network
 
 import (
-	"comp3200/network"
 	"fmt"
 )
 
 func TrainStandardNetwork() {
-	data := network.LoadData()
+	data := LoadData()
 	fmt.Println("Training network with", len(data.Train), "Training instances and", len(data.Test), "testing instances")
 
-	nn := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
+	nn := NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
 	epochs := 1000
 	batchSize := 30
 

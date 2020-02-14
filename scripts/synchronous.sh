@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source setup.sh
+source scripts/setup.sh
 
 parameter=":8888"
 clients=4

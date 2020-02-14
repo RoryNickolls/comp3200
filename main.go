@@ -1,9 +1,9 @@
 package main
 
 import (
-	"comp3200/downpour"
-	"comp3200/network"
-	"comp3200/synchronous"
+	"comp3200/lib/downpour"
+	"comp3200/lib/network"
+	"comp3200/lib/synchronous"
 	"flag"
 	"strings"
 )
@@ -43,7 +43,7 @@ func main() {
 	flag.Parse()
 
 	if algorithm == "standard" {
-		TrainStandardNetwork()
+		network.TrainStandardNetwork()
 	} else if algorithm == "downpour" {
 		switch nodeType {
 		case "parameter":
