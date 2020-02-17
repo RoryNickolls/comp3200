@@ -22,7 +22,6 @@ func LaunchModelReplica(address string, dataAddress string, parameterAddress str
 	dataMsg := messenger.Connect(dataAddress)
 	paramMsg := messenger.Connect(parameterAddress)
 
-	fmt.Println("Reqesting model configuration...")
 	paramMsg.SendMessage("MDL")
 	var networkConfig network.NetworkConfig
 	paramMsg.ReceiveInterface(&networkConfig)
@@ -31,23 +30,48 @@ func LaunchModelReplica(address string, dataAddress string, parameterAddress str
 
 	for {
 
-		fmt.Println("Requesting mini-batches...")
+		// fmt.Println("Requesting mini-batches...")
 		dataMsg.SendMessage("REQ " + strconv.Itoa(fetch))
 
 		var miniBatches [][]network.Record
 		dataMsg.ReceiveInterface(&miniBatches)
-		fmt.Println("Received mini-batches")
+		// fmt.Println("Received mini-batches")
+
+		storedDeltas := 0
+		request := 0
+
+		weights, biases := mr.model.ZeroedParameters()
+
 
 		// Perform training on data
 		// Update model before each mini-batch, send deltas to parameter server after
 
-		fmt.Println("Training...")
+		// fmt.Println("Training...")
 		for i := 0; i < len(miniBatches); i++ {
-			mr.receiveParameters(paramMsg)
-			weightDeltas, biasDeltas := mr.model.Train(miniBatches[i])
-			mr.sendDeltas(paramMsg, weightDeltas, biasDeltas)
+
+			// Only make a request after fetch minibatches
+			request--
+			if request <= 0 {
+				mr.receiveParameters(paramMsg)
+				request = push
+			}
+
+			w, b := mr.model.TrainAndUpdate(miniBatches[i])
+
+			for j := 0; j < len(w); j++ {
+				weights[j].Add(&weights[j], &w[j])
+				biases[j].AddVec(&biases[j], &b[j])
+			}
+			storedDeltas++
+
+			// Only update after push minibatches
+			if storedDeltas % push == 0 {
+				mr.sendDeltas(paramMsg, weights, biases)
+				weights, biases = mr.model.ZeroedParameters()
+				storedDeltas = 0
+			}
 		}
-		fmt.Println("Finished training")
+		// fmt.Println("Finished training")
 	}
 }
 

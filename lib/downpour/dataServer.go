@@ -29,7 +29,7 @@ func (ds *DataServer) serveMiniBatches(messenger messenger.Messenger, n int) {
 	}
 
 	// Otherwise serve the minibatches
-	fmt.Println("Serving data")
+	// fmt.Println("Serving data")
 	messenger.SendInterface(batches)
 
 	ds.index += count
@@ -71,7 +71,7 @@ func LaunchDataServer(address string) {
 }
 
 func (ds *DataServer) waitForRequest(messenger messenger.Messenger) int {
-	fmt.Println("Waiting for data request")
+	// fmt.Println("Waiting for data request")
 	var msg string
 	messenger.ReceiveMessage(&msg)
 
@@ -80,7 +80,7 @@ func (ds *DataServer) waitForRequest(messenger messenger.Messenger) int {
 	// If message reads REQ then exit and serve the partition
 	if parts[0] == "REQ" {
 		count, _ := strconv.ParseInt(parts[1], 10, 32)
-		fmt.Println("Received data request for", count, "batches")
+		// fmt.Println("Received data request for", count, "batches")
 		return int(count)
 	}
 

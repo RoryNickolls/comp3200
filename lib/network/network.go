@@ -83,6 +83,17 @@ func (nn *Network) Parameters() ([]mat.Dense, []mat.VecDense) {
 	return weights, biases
 }
 
+func (nn *Network) ZeroedParameters() ([]mat.Dense, []mat.VecDense) {
+	weights, biases := nn.Parameters()
+	for i := 0; i < len(weights); i++ {
+		weights[i].Zero()
+		biases[i].Zero()
+	}
+
+	return weights, biases
+}
+
+
 func (nn *Network) outputLayer() *layer {
 	return &nn.layers[len(nn.layers)-1]
 }

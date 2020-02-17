@@ -35,12 +35,8 @@ func LaunchClient(paramAddress string) {
 		client.receiveParameters(param)
 
 		// Zero all parameters to get empty matrices to accumulate deltas in
-		weights, biases := client.model.Parameters()
-		for i := 0; i < len(weights); i++ {
-			weights[i].Zero()
-			biases[i].Zero()
-		}
-
+		weights, biases := client.model.ZeroedParameters()
+		
 		// Do minibatches
 		for i := 0; i < batchesPerUpdate; i++ {
 			batch := minibatches[idx]
