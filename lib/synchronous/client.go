@@ -1,9 +1,10 @@
 package synchronous
 
 import (
+	"comp3200/lib"
 	"comp3200/lib/messenger"
 	"comp3200/lib/network"
-	"fmt"
+	"log"
 
 	"gonum.org/v1/gonum/mat"
 )
@@ -14,10 +15,10 @@ type client struct {
 }
 
 func LaunchClient(paramAddress string) {
+	lib.SetupLog("sync/model")
 	data := network.LoadData()
 
-	minibatchSize := 50
-	minibatches := data.GetMiniBatches(minibatchSize)
+	minibatches := data.GetMiniBatches(lib.MiniBatchSize)
 	idx := 0
 	batchesPerUpdate := 7
 	epochs := 0
@@ -30,13 +31,13 @@ func LaunchClient(paramAddress string) {
 	var networkConfig network.NetworkConfig
 	param.ReceiveInterface(&networkConfig)
 	client.model = network.NewNetworkFromConfig(networkConfig)
-	fmt.Println("Retrieved model configuration")
+	log.Println("Retrieved model configuration")
 	for {
 		client.receiveParameters(param)
 
 		// Zero all parameters to get empty matrices to accumulate deltas in
 		weights, biases := client.model.ZeroedParameters()
-		
+
 		// Do minibatches
 		for i := 0; i < batchesPerUpdate; i++ {
 			batch := minibatches[idx]
@@ -50,7 +51,7 @@ func LaunchClient(paramAddress string) {
 
 			idx++
 			if idx >= len(minibatches) {
-				minibatches = data.GetMiniBatches(minibatchSize)
+				minibatches = data.GetMiniBatches(lib.MiniBatchSize)
 				idx = 0
 				epochs++
 			}

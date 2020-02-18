@@ -32,7 +32,7 @@ func main() {
 	flag.StringVar(&parameterAddress, "parameter", "localhost:8888", "Address of the parameter server")
 
 	// Downpour specific
-	flag.StringVar(&dataAddress, "data", "localhost:8888", "Address of the data server for this model")
+	flag.StringVar(&dataAddress, "data", "", "Address of the data server for this model")
 	flag.IntVar(&fetch, "fetch", 10, "Number of mini-batches to fetch at a time")
 	flag.IntVar(&push, "push", 10, "Number of mini-batches to process before sending updates")
 	flag.StringVar(&dataServers, "dataServers", "", "Comma-separated addresses of data servers to provision")
@@ -42,16 +42,18 @@ func main() {
 
 	flag.Parse()
 
+	// messenger.StartLoggingMessages()
+
+	model := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.3)
 	if algorithm == "standard" {
 		network.TrainStandardNetwork()
 	} else if algorithm == "downpour" {
 		switch nodeType {
 		case "parameter":
-			network := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
-			downpour.LaunchParameterServer(address, network)
+			downpour.LaunchParameterServer(address, model, false)
 			break
 		case "model":
-			downpour.LaunchModelReplica(address, dataAddress, parameterAddress, fetch, push)
+			downpour.LaunchModelReplica(dataAddress, parameterAddress, fetch, push)
 			break
 		case "data":
 			downpour.LaunchDataServer(address)
@@ -66,12 +68,19 @@ func main() {
 	} else if algorithm == "sync" {
 		switch nodeType {
 		case "parameter":
-			network := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
-			synchronous.LaunchSynchronousParameterServer(address, clients, network)
+			synchronous.LaunchSynchronousParameterServer(address, clients, model)
 			break
 		case "client":
 			synchronous.LaunchClient(parameterAddress)
 			break
+		}
+	} else if algorithm == "async" {
+		switch nodeType {
+		case "parameter":
+			downpour.LaunchParameterServer(address, model, true)
+			break
+		case "model":
+			downpour.LaunchModelReplica("", parameterAddress, 1, 1)
 		}
 	}
 }

@@ -1,9 +1,10 @@
 package downpour
 
 import (
+	"comp3200/lib"
 	"comp3200/lib/messenger"
 	"comp3200/lib/network"
-	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"strconv"
@@ -36,26 +37,28 @@ func (ds *DataServer) serveMiniBatches(messenger messenger.Messenger, n int) {
 }
 
 func LaunchDataServer(address string) {
+	lib.SetupLog("downpour/data")
+
 	l, err := net.Listen("tcp4", address)
 
 	if err != nil {
-		fmt.Println("ERR:", err)
+		log.Println("ERR:", err)
 	}
 
 	ds := DataServer{}
 
 	// Initially receive all data
-	fmt.Println("Waiting to be assigned data partition...")
+	log.Println("Waiting to be assigned data partition...")
 	var data network.Data
 	conn, err := l.Accept()
 	msg := messenger.NewMessenger(conn)
 	msg.ReceiveInterface(&data)
 
-	ds.miniBatches = data.GetMiniBatches(50)
-	fmt.Println("Assigned data partition")
+	ds.miniBatches = data.GetMiniBatches(lib.MiniBatchSize)
+	log.Println("Assigned data partition")
 
 	// Wait for a model replica to connect
-	fmt.Println("Waiting for model replica...")
+	log.Println("Waiting for model replica...")
 	conn, _ = l.Accept()
 	msg = messenger.NewMessenger(conn)
 	for {

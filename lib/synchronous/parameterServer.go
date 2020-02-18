@@ -1,9 +1,10 @@
 package synchronous
 
 import (
+	"comp3200/lib"
 	"comp3200/lib/messenger"
 	"comp3200/lib/network"
-	"fmt"
+	"log"
 	"net"
 	"sync"
 
@@ -23,15 +24,17 @@ var data *network.Data
 
 func LaunchSynchronousParameterServer(address string, clients int, model *network.Network) {
 
+	lib.SetupLog("sync/parameter")
+
 	data = network.LoadData()
 
-	fmt.Println("Launching parameter server")
+	log.Println("Launching parameter server")
 	ps := SynchronousParameterServer{model: model, clients: clients}
 	ps.newAccumulators()
 
 	l, err := net.Listen("tcp4", address)
 	if err != nil {
-		fmt.Println("ERR:", err)
+		log.Println("ERR:", err)
 		return
 	}
 
@@ -41,13 +44,28 @@ func LaunchSynchronousParameterServer(address string, clients int, model *networ
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			fmt.Println("ERR:", err)
+			log.Println("ERR:", err)
 			return
 		}
 		msg := messenger.NewMessenger(conn)
 		go ps.handleConnection(msg)
 		ps.connectedClients = append(ps.connectedClients, msg)
 		connected++
+
+		if connected >= clients {
+			out := make(chan float64)
+			go ps.model.ContinuousEvaluation(data.Test, out)
+			go handleEvaluation(out)
+		}
+	}
+
+}
+
+func handleEvaluation(out chan float64) {
+	for {
+		loss := <-out
+		accuracy := <-out
+		log.Printf("%.4f,%.4f\n", loss, accuracy)
 	}
 }
 
@@ -61,7 +79,7 @@ func (ps *SynchronousParameterServer) newAccumulators() {
 }
 
 func (ps *SynchronousParameterServer) handleConnection(msg messenger.Messenger) {
-	fmt.Println("New model replica connected")
+	log.Println("New model replica connected")
 	for {
 		var cmd string
 		msg.ReceiveMessage(&cmd)
@@ -132,11 +150,6 @@ func (ps *SynchronousParameterServer) handleParameterUpdate(msg messenger.Messen
 		updateMutex.Lock()
 		updates = 0
 		updateMutex.Unlock()
-
-		if syncUpdates%1000 == 0 {
-			loss, accuracy := ps.model.Evaluate(data.Test)
-			fmt.Printf("%.4f,%.4f\n", loss, accuracy)
-		}
 
 		// Send CON signal to all clients
 		for _, m := range ps.connectedClients {

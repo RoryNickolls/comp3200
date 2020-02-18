@@ -1,9 +1,10 @@
 package downpour
 
 import (
+	"comp3200/lib"
 	"comp3200/lib/messenger"
 	"comp3200/lib/network"
-	"fmt"
+	"log"
 	"strconv"
 
 	"gonum.org/v1/gonum/mat"
@@ -11,37 +12,58 @@ import (
 
 type ModelReplica struct {
 	model *network.Network
-	data  network.Data
 	fetch int
 	push  int
 }
 
-func LaunchModelReplica(address string, dataAddress string, parameterAddress string, fetch int, push int) {
+func LaunchModelReplica(dataAddress string, parameterAddress string, fetch int, push int) {
 
+	if dataAddress == "" {
+		lib.SetupLog("async/model")
+	} else {
+		lib.SetupLog("downpour/model")
+	}
 	mr := ModelReplica{fetch: fetch, push: push}
-	dataMsg := messenger.Connect(dataAddress)
+
 	paramMsg := messenger.Connect(parameterAddress)
 
 	paramMsg.SendMessage("MDL")
 	var networkConfig network.NetworkConfig
 	paramMsg.ReceiveInterface(&networkConfig)
 	mr.model = network.NewNetworkFromConfig(networkConfig)
-	fmt.Println("Received model configuration")
+	log.Println("Received model configuration")
+
+	var dataMsg messenger.Messenger
+
+	var data *network.Data
+	var dataBatches [][]network.Record
+	if dataAddress != "" {
+		dataMsg = messenger.Connect(dataAddress)
+	} else {
+		data = network.LoadData()
+		dataBatches = data.GetMiniBatches(lib.MiniBatchSize)
+	}
 
 	for {
 
 		// fmt.Println("Requesting mini-batches...")
-		dataMsg.SendMessage("REQ " + strconv.Itoa(fetch))
 
 		var miniBatches [][]network.Record
-		dataMsg.ReceiveInterface(&miniBatches)
+		if dataAddress != "" {
+			dataMsg.SendMessage("REQ " + strconv.Itoa(fetch))
+			dataMsg.ReceiveInterface(&miniBatches)
+		} else {
+			if len(dataBatches) < fetch {
+				dataBatches = data.GetMiniBatches(lib.MiniBatchSize)
+			}
+			miniBatches, dataBatches = dataBatches[0:fetch], dataBatches[fetch+1:]
+		}
 		// fmt.Println("Received mini-batches")
 
 		storedDeltas := 0
 		request := 0
 
 		weights, biases := mr.model.ZeroedParameters()
-
 
 		// Perform training on data
 		// Update model before each mini-batch, send deltas to parameter server after
@@ -65,7 +87,7 @@ func LaunchModelReplica(address string, dataAddress string, parameterAddress str
 			storedDeltas++
 
 			// Only update after push minibatches
-			if storedDeltas % push == 0 {
+			if storedDeltas%push == 0 {
 				mr.sendDeltas(paramMsg, weights, biases)
 				weights, biases = mr.model.ZeroedParameters()
 				storedDeltas = 0
@@ -73,12 +95,6 @@ func LaunchModelReplica(address string, dataAddress string, parameterAddress str
 		}
 		// fmt.Println("Finished training")
 	}
-}
-
-func (mr *ModelReplica) getData(msg messenger.Messenger) {
-	var data network.Data
-	msg.ReceiveInterface(&data)
-	mr.data = data
 }
 
 func (mr *ModelReplica) receiveParameters(msg messenger.Messenger) {

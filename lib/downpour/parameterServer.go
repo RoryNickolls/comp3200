@@ -1,9 +1,10 @@
 package downpour
 
 import (
+	"comp3200/lib"
 	"comp3200/lib/messenger"
 	"comp3200/lib/network"
-	"fmt"
+	"log"
 	"net"
 
 	"gonum.org/v1/gonum/mat"
@@ -15,31 +16,48 @@ type ParameterServer struct {
 
 var data *network.Data
 
-func LaunchParameterServer(address string, model *network.Network) {
+func LaunchParameterServer(address string, model *network.Network, isAsync bool) {
+	if isAsync {
+		lib.SetupLog("async/parameter")
+	} else {
+		lib.SetupLog("downpour/parameter")
+	}
 
 	data = network.LoadData()
 
-	fmt.Println("Launching parameter server")
+	log.Println("Launching parameter server")
 	ps := ParameterServer{model}
 
 	l, err := net.Listen("tcp4", address)
 	if err != nil {
-		fmt.Println("ERR:", err)
+		log.Println("ERR:", err)
 		return
 	}
+
+	out := make(chan float64)
+	go ps.model.ContinuousEvaluation(data.Test, out)
+	go handleEvaluation(out)
 
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			fmt.Println("ERR:", err)
+			log.Println("ERR:", err)
 			return
 		}
 		go ps.handleConnection(messenger.NewMessenger(conn))
 	}
 }
 
+func handleEvaluation(out chan float64) {
+	for {
+		loss := <-out
+		accuracy := <-out
+		log.Printf("%.4f,%.4f\n", loss, accuracy)
+	}
+}
+
 func (ps *ParameterServer) handleConnection(msg messenger.Messenger) {
-	fmt.Println("New model replica connected")
+	log.Println("New model replica connected")
 	for {
 		var cmd string
 		msg.ReceiveMessage(&cmd)
@@ -86,10 +104,4 @@ func (ps *ParameterServer) handleParameterUpdate(msg messenger.Messenger) {
 	// update master model with deltas
 	ps.model.UpdateWithDeltas(weightDeltas, biasDeltas)
 	updates++
-
-	if updates%600 == 0 {
-		loss, accuracy := ps.model.Evaluate(data.Test)
-		fmt.Printf("%.4f,%.4f\n", loss, accuracy)
-	}
-
 }

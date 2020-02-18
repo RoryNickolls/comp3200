@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat/distuv"
@@ -92,7 +93,6 @@ func (nn *Network) ZeroedParameters() ([]mat.Dense, []mat.VecDense) {
 
 	return weights, biases
 }
-
 
 func (nn *Network) outputLayer() *layer {
 	return &nn.layers[len(nn.layers)-1]
@@ -266,6 +266,15 @@ func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 
 	// Average error over whole train set
 	return err / float64(len(testData)), float64(correct) / float64(len(testData))
+}
+
+func (nn *Network) ContinuousEvaluation(testData []Record, out chan float64) {
+	for {
+		loss, accuracy := nn.Evaluate(testData)
+		out <- loss
+		out <- accuracy
+		time.Sleep(30000 * time.Millisecond)
+	}
 }
 
 type layer struct {

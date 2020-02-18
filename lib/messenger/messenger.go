@@ -3,7 +3,9 @@ package messenger
 import (
 	"encoding/gob"
 	"fmt"
+	"log"
 	"net"
+	"reflect"
 	"strings"
 )
 
@@ -31,6 +33,7 @@ func (m *Messenger) ReceiveInterface(v interface{}) {
 		fmt.Println("Error receiving interface", err)
 		panic(err)
 	}
+	logReceiveMessage(reflect.TypeOf(v).String())
 }
 
 func (m *Messenger) ReceiveMessage(cmd *string) {
@@ -42,6 +45,8 @@ func (m *Messenger) ReceiveMessage(cmd *string) {
 		panic(err)
 	}
 	*cmd = strings.TrimSpace(temp)
+
+	logReceiveMessage(*cmd)
 }
 
 func (m *Messenger) SendInterface(v interface{}) {
@@ -50,6 +55,7 @@ func (m *Messenger) SendInterface(v interface{}) {
 		fmt.Println("Error sending interface", err)
 		panic(err)
 	}
+	logSendMessage(reflect.TypeOf(v).String())
 }
 
 func (m *Messenger) SendMessage(msg string) {
@@ -58,4 +64,23 @@ func (m *Messenger) SendMessage(msg string) {
 		fmt.Println("Error sending command", err)
 		panic(err)
 	}
+	logSendMessage(msg)
+}
+
+var loggingMessages bool
+
+func logSendMessage(msg string) {
+	if loggingMessages {
+		log.Println("Sent", msg)
+	}
+}
+
+func logReceiveMessage(msg string) {
+	if loggingMessages {
+		log.Println("Received", msg)
+	}
+}
+
+func StartLoggingMessages() {
+	loggingMessages = true
 }
