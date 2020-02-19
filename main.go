@@ -1,7 +1,9 @@
 package main
 
 import (
+	"comp3200/lib"
 	"comp3200/lib/downpour"
+	"comp3200/lib/messenger"
 	"comp3200/lib/network"
 	"comp3200/lib/synchronous"
 	"flag"
@@ -42,7 +44,9 @@ func main() {
 
 	flag.Parse()
 
-	// messenger.StartLoggingMessages()
+	if lib.LogMessages {
+		messenger.StartLoggingMessages()
+	}
 
 	model := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.3)
 	if algorithm == "standard" {

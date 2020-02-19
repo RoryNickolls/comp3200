@@ -1,12 +1,14 @@
 package messenger
 
 import (
+	"comp3200/lib"
 	"encoding/gob"
 	"fmt"
 	"log"
 	"net"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type Messenger struct {
@@ -28,6 +30,7 @@ func NewMessenger(conn net.Conn) Messenger {
 }
 
 func (m *Messenger) ReceiveInterface(v interface{}) {
+	SimulateLatency()
 	err := m.dec.Decode(v)
 	if err != nil {
 		fmt.Println("Error receiving interface", err)
@@ -38,7 +41,7 @@ func (m *Messenger) ReceiveInterface(v interface{}) {
 
 func (m *Messenger) ReceiveMessage(cmd *string) {
 	var temp string
-
+	SimulateLatency()
 	err := m.dec.Decode(&temp)
 	if err != nil {
 		fmt.Println("Error receiving command", err)
@@ -65,6 +68,12 @@ func (m *Messenger) SendMessage(msg string) {
 		panic(err)
 	}
 	logSendMessage(msg)
+}
+
+func SimulateLatency() {
+	if lib.SimulatingLatency {
+		time.Sleep(lib.Latency * time.Millisecond)
+	}
 }
 
 var loggingMessages bool
