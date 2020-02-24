@@ -80,13 +80,13 @@ var loggingMessages bool
 
 func logSendMessage(msg string) {
 	if loggingMessages {
-		log.Println("Sent", msg)
+		log.Println("tx", msg)
 	}
 }
 
 func logReceiveMessage(msg string) {
 	if loggingMessages {
-		log.Println("Received", msg)
+		log.Println("rx", msg)
 	}
 }
 

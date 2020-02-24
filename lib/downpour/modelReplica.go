@@ -44,6 +44,7 @@ func LaunchModelReplica(dataAddress string, parameterAddress string, fetch int, 
 		dataBatches = data.GetMiniBatches(lib.MiniBatchSize)
 	}
 
+	storedDeltas := 0
 	for {
 
 		// fmt.Println("Requesting mini-batches...")
@@ -59,8 +60,6 @@ func LaunchModelReplica(dataAddress string, parameterAddress string, fetch int, 
 			miniBatches, dataBatches = dataBatches[0:fetch], dataBatches[fetch+1:]
 		}
 		// fmt.Println("Received mini-batches")
-
-		storedDeltas := 0
 		request := 0
 
 		weights, biases := mr.model.ZeroedParameters()
