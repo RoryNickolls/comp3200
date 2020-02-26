@@ -115,8 +115,6 @@ func (ps *SynchronousParameterServer) handleModelRequest(msg messenger.Messenger
 var updates int
 var updateMutex sync.Mutex
 
-var syncUpdates int
-
 func (ps *SynchronousParameterServer) handleParameterUpdate(msg messenger.Messenger) {
 
 	// receive deltas for weights and biases
@@ -126,18 +124,13 @@ func (ps *SynchronousParameterServer) handleParameterUpdate(msg messenger.Messen
 	msg.ReceiveInterface(&weightDeltas)
 	msg.ReceiveInterface(&biasDeltas)
 
-	ps.accumMutex.Lock()
+	updateMutex.Lock()
 	for i := 0; i < len(weightDeltas); i++ {
 		ps.accumWeight[i].Add(&ps.accumWeight[i], &weightDeltas[i])
 		ps.accumBias[i].AddVec(&ps.accumBias[i], &biasDeltas[i])
 	}
-	ps.accumMutex.Unlock()
 
-	updateMutex.Lock()
 	updates++
-	updateMutex.Unlock()
-
-	syncUpdates++
 
 	// If we have received an update from every client
 	if updates >= ps.clients {
@@ -147,13 +140,13 @@ func (ps *SynchronousParameterServer) handleParameterUpdate(msg messenger.Messen
 
 		ps.newAccumulators()
 
-		updateMutex.Lock()
 		updates = 0
-		updateMutex.Unlock()
 
 		// Send CON signal to all clients
 		for _, m := range ps.connectedClients {
 			m.SendMessage("CON")
 		}
 	}
+
+	updateMutex.Unlock()
 }
