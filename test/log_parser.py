@@ -23,9 +23,11 @@ def check_log(name, pattern):
             if ignore_line(clean):
                 continue
             cleaned += clean
-        
+            
         match = re.match(pattern, cleaned)
         if match is None:
+            print("Test failed.")
             return False
         else:
+            print("Test passed.")
             return True
