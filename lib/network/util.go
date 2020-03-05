@@ -74,12 +74,28 @@ func SigPrime(v float64) float64 {
 	return v * (1.0 - v)
 }
 
+// MSE cost and deltacost functions, not used anymore
 func Cost(activation, target float64) float64 {
 	return math.Pow(activation-target, 2.0)
 }
 
 func DeltaCost(activation, target float64) float64 {
 	return 2.0 * (target - activation)
+}
+
+func DeltaCrossEntropy(activation, target *mat.VecDense) *mat.VecDense {
+	newVec := mat.NewVecDense(activation.Len(), nil)
+	newVec.SubVec(target, activation)
+	newVec.ScaleVec(1.0/float64(newVec.Len()), newVec)
+	return newVec
+}
+
+func CrossEntropy(activation, target *mat.VecDense) float64 {
+	newVec := mat.NewVecDense(activation.Len(), nil)
+	for i := 0; i < newVec.Len(); i++ {
+		newVec.SetVec(i, target.AtVec(i)*math.Log(activation.AtVec(i)))
+	}
+	return -mat.Sum(newVec)
 }
 
 func ApplyVec(vec *mat.VecDense, f func(float64) float64) *mat.VecDense {

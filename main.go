@@ -48,7 +48,7 @@ func main() {
 		messenger.StartLoggingMessages()
 	}
 
-	model := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.3)
+	model := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
 	if algorithm == "standard" {
 		network.TrainStandardNetwork()
 	} else if algorithm == "downpour" {

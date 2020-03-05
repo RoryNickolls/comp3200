@@ -10,17 +10,21 @@ func TrainStandardNetwork() {
 
 	nn := NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
 	epochs := 1000
-	batchSize := 30
+	batchSize := 10
 
-	loss, correct := nn.Evaluate(data.Test)
-	fmt.Printf("Epoch 00 Loss %.4f Accuracy %.4f\n", loss, correct)
+	loss, accuracy := nn.Evaluate(data.Test)
+	printResult(0, loss, accuracy)
 	for i := 0; i < epochs; i++ {
 		miniBatches := data.GetMiniBatches(batchSize)
 		for j := 0; j < len(miniBatches); j++ {
 			nn.TrainAndUpdate(miniBatches[j])
 		}
-		loss, correct := nn.Evaluate(data.Test)
-
-		fmt.Printf("ep %.2d l %.4f a %.4f\n", i+1, loss, correct)
+		loss, accuracy := nn.Evaluate(data.Test)
+		printResult(i+1, loss, accuracy)
+		nn.Config.LearningRate *= 0.95
 	}
+}
+
+func printResult(epoch int, loss float64, accuracy float64) {
+	fmt.Printf("%.2d,%.4f,%.4f\n", epoch, loss, accuracy)
 }

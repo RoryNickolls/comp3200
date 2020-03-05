@@ -2,7 +2,6 @@ package network
 
 import (
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -151,17 +150,20 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 			// This is the output layer
 			if j == len(nn.layers)-1 {
 
+				cross := DeltaCrossEntropy(layer.output, &target)
+
 				// K is index of each neuron in this layer
 				for k := 0; k < layer.out; k++ {
+					//output := layer.output.AtVec(k)
 
 					// Cost with respect to output
-					dEdO := DeltaCost(layer.output.AtVec(k), target.AtVec(k))
+					//dEdO := DeltaCost(output, target.AtVec(k))
 
 					// Output with respect to input
-					dOdI := SigPrime(layer.output.AtVec(k))
+					//dOdI := SigPrime(output)
 
 					// Save some values for the next layer
-					dEdI.SetVec(k, dEdO*dOdI)
+					dEdI.SetVec(k, cross.AtVec(k))
 
 					// L is index of each neuron connected behind this one
 					for l := 0; l < layer.in; l++ {
@@ -170,12 +172,13 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 						dIdW := prevLayer.output.AtVec(l)
 
 						// Combine derivatives using chain rule to get cost function with respect to weight
-						dEdW := dEdO * dOdI * dIdW
+						//dEdW := dEdO * dOdI * dIdW
+						dEdW := cross.AtVec(k) * dIdW
 
 						deltaW.Set(k, l, dEdW)
 					}
 
-					dEdB := dEdO * dOdI
+					dEdB := cross.AtVec(k)
 					deltaB.SetVec(k, dEdB)
 				}
 
@@ -187,6 +190,7 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 
 				// K is index of each neuron in this layer
 				for k := 0; k < layer.out; k++ {
+					output := layer.output.AtVec(k)
 
 					// Change to a sum of errors because we have multiple output neurons
 					dEdO := 0.0
@@ -197,7 +201,7 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 					}
 
 					// rest is the same
-					dOdI := SigPrime(layer.output.AtVec(k))
+					dOdI := SigPrime(output)
 
 					dEdINew.SetVec(k, dEdO*dOdI)
 
@@ -243,6 +247,9 @@ func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 	for _, record := range testData {
 		prediction := nn.Predict(&record.Data)
 		expected := &record.Expected
+
+		cross := CrossEntropy(prediction, expected)
+
 		max := 0
 		for i := 0; i < prediction.Len(); i++ {
 			if prediction.AtVec(i) > prediction.AtVec(max) {
@@ -254,13 +261,14 @@ func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 			correct++
 		}
 
-		prediction.SubVec(expected, prediction)
-		for i := 0; i < prediction.Len(); i++ {
-			prediction.SetVec(i, math.Pow(prediction.AtVec(i), 2))
-		}
+		// prediction.SubVec(expected, prediction)
+		// for i := 0; i < prediction.Len(); i++ {
+		// 	prediction.SetVec(i, math.Pow(prediction.AtVec(i), 2))
+		// }
 
 		// Add MSE to total
-		err += mat.Sum(prediction) / float64(prediction.Len())
+		//err += mat.Sum(prediction) / float64(prediction.Len())
+		err += cross
 
 	}
 
