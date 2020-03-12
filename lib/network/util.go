@@ -79,6 +79,14 @@ func Cost(activation, target float64) float64 {
 	return math.Pow(activation-target, 2.0)
 }
 
+func CostVec(activation, target *mat.VecDense) float64 {
+	sum := 0.0
+	for i := 0; i < activation.Len(); i++ {
+		sum += Cost(activation.AtVec(i), target.AtVec(i))
+	}
+	return sum
+}
+
 func DeltaCost(activation, target float64) float64 {
 	return 2.0 * (target - activation)
 }
@@ -105,4 +113,18 @@ func ApplyVec(vec *mat.VecDense, f func(float64) float64) *mat.VecDense {
 	}
 
 	return newVec
+}
+
+func FlattenMatrix(matrix *mat.Dense) *mat.VecDense {
+	r, c := matrix.Dims()
+	length := r * c
+	return mat.NewVecDense(length, matrix.RawMatrix().Data)
+}
+
+func Norm(vec *mat.VecDense) float64 {
+	sum := 0.0
+	for i := 0; i < vec.Len(); i++ {
+		sum += math.Pow(vec.AtVec(i), 2)
+	}
+	return math.Sqrt(sum)
 }

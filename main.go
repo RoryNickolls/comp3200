@@ -7,6 +7,7 @@ import (
 	"comp3200/lib/network"
 	"comp3200/lib/synchronous"
 	"flag"
+	"fmt"
 	"strings"
 )
 
@@ -51,6 +52,11 @@ func main() {
 	model := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
 	if algorithm == "standard" {
 		network.TrainStandardNetwork()
+	} else if algorithm == "check" {
+		for i := 0; i < 10; i++ {
+			result := model.GradientCheck(0.0000001)
+			fmt.Println(result)
+		}
 	} else if algorithm == "downpour" {
 		switch nodeType {
 		case "parameter":

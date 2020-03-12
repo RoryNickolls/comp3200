@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -164,6 +165,7 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 
 					// Save some values for the next layer
 					dEdI.SetVec(k, cross.AtVec(k))
+					//dEdI.SetVec(k, dEdO*dOdI)
 
 					// L is index of each neuron connected behind this one
 					for l := 0; l < layer.in; l++ {
@@ -179,6 +181,7 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 					}
 
 					dEdB := cross.AtVec(k)
+					//dEdB := dEdO * dEdI
 					deltaB.SetVec(k, dEdB)
 				}
 
@@ -261,13 +264,6 @@ func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 			correct++
 		}
 
-		// prediction.SubVec(expected, prediction)
-		// for i := 0; i < prediction.Len(); i++ {
-		// 	prediction.SetVec(i, math.Pow(prediction.AtVec(i), 2))
-		// }
-
-		// Add MSE to total
-		//err += mat.Sum(prediction) / float64(prediction.Len())
 		err += cross
 
 	}
@@ -283,6 +279,94 @@ func (nn *Network) ContinuousEvaluation(testData []Record, out chan float64) {
 		out <- accuracy
 		time.Sleep(30000 * time.Millisecond)
 	}
+}
+
+func (nn *Network) GradientCheck(eps float64) float64 {
+
+	data := LoadData()
+	nn.TrainAndUpdate(data.Train[:10000])
+
+	record := data.Train[rand.Intn(len(data.Train))]
+	analyticalWeights, analyticalBiases := nn.Train([]Record{record})
+
+	weights, biases := nn.Parameters()
+
+	sum := 0.0
+	count := 0
+	for i := 0; i < len(weights); i++ {
+		r, c := weights[i].Dims()
+		approxWeights := mat.NewDense(r, c, nil)
+
+		var w mat.Dense
+		w.CloneFrom(&weights[i])
+		for j := 0; j < r; j++ {
+			for k := 0; k < c; k++ {
+
+				v := weights[i].At(j, k)
+
+				// Calculate cost by replacing weight on this layer with w - eps
+				w.Set(j, k, v-eps)
+				newWeights := append(append(weights[:i], w), weights[i+1:]...)
+				nn.SetParameters(newWeights, biases)
+				costMinus := CrossEntropy(nn.Predict(&record.Data), &record.Expected)
+
+				// Calculate cost by replacing weight on this layer with w + eps
+				w.Set(j, k, v+eps)
+				newWeights = append(append(weights[:i], w), weights[i+1:]...)
+				nn.SetParameters(newWeights, biases)
+				costPlus := CrossEntropy(nn.Predict(&record.Data), &record.Expected)
+
+				// Reset the value and neural network parameters
+				w.Set(j, k, v)
+				nn.SetParameters(weights, biases)
+
+				// Calculate approximate derivative
+				approx := (costPlus - costMinus) / (2 * eps)
+				approxWeights.Set(j, k, approx)
+			}
+		}
+
+		var diffW mat.Dense
+		diffW.Sub(&analyticalWeights[i], approxWeights)
+		diffW.Scale(1.0/2.0*eps, &diffW)
+		sum += Norm(FlattenMatrix(&diffW))
+		count++
+
+		var b mat.VecDense
+		b.CloneVec(&biases[i])
+		approxBiases := mat.NewVecDense(b.Len(), nil)
+		for j := 0; j < b.Len(); j++ {
+			v := b.AtVec(j)
+
+			// Calculate cost by replacing bias with b - eps
+			b.SetVec(j, v-eps)
+			newBiases := append(append(biases[:i], b), biases[i+1:]...)
+			nn.SetParameters(weights, newBiases)
+			costMinus := CrossEntropy(nn.Predict(&record.Data), &record.Expected)
+
+			// Calculate cost by replacing bias with b + eps
+			b.SetVec(j, v+eps)
+			newBiases = append(append(biases[:i], b), biases[i+1:]...)
+			nn.SetParameters(weights, newBiases)
+			costPlus := CrossEntropy(nn.Predict(&record.Data), &record.Expected)
+
+			// Reset the value and neural network parameters
+			b.SetVec(j, v)
+			nn.SetParameters(weights, biases)
+
+			// Calculate approximate derivative
+			approx := (costPlus - costMinus) / (2 * eps)
+			approxBiases.SetVec(j, approx)
+		}
+
+		var diffB mat.VecDense
+		diffB.SubVec(&analyticalBiases[i], approxBiases)
+		diffB.ScaleVec(1.0/2.0*eps, &diffB)
+		sum += Norm(&diffB)
+		count++
+	}
+
+	return sum / float64(count)
 }
 
 type layer struct {

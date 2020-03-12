@@ -13,3 +13,7 @@ func NewRecord(data mat.VecDense, label int) Record {
 
 	return Record{data, *target}
 }
+
+func NewRecordRaw(data mat.VecDense, expected mat.VecDense) Record {
+	return Record{data, expected}
+}
