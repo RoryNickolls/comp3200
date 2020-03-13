@@ -6,6 +6,7 @@ import (
 
 	"github.com/petar/GoMNIST"
 	"gonum.org/v1/gonum/mat"
+	"gonum.org/v1/gonum/stat"
 )
 
 func rawImageToInputVector(img GoMNIST.RawImage) *mat.VecDense {
@@ -99,11 +100,8 @@ func DeltaCrossEntropy(activation, target *mat.VecDense) *mat.VecDense {
 }
 
 func CrossEntropy(activation, target *mat.VecDense) float64 {
-	newVec := mat.NewVecDense(activation.Len(), nil)
-	for i := 0; i < newVec.Len(); i++ {
-		newVec.SetVec(i, target.AtVec(i)*math.Log(activation.AtVec(i)))
-	}
-	return -mat.Sum(newVec)
+	val := stat.CrossEntropy(target.RawVector().Data, activation.RawVector().Data)
+	return val
 }
 
 func ApplyVec(vec *mat.VecDense, f func(float64) float64) *mat.VecDense {

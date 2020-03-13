@@ -2,7 +2,6 @@ package network
 
 import (
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -111,10 +110,12 @@ func (nn *Network) UpdateWithDeltas(weightDeltas []mat.Dense, biasDeltas []mat.V
 	// Update each layers weights with deltas
 	for j := 0; j < len(nn.layers); j++ {
 		layer := nn.layers[j]
+
 		weightDeltas[j].Scale(nn.Config.LearningRate, &weightDeltas[j])
 		biasDeltas[j].ScaleVec(nn.Config.LearningRate, &biasDeltas[j])
-		layer.weights.Add(layer.weights, &weightDeltas[j])
-		layer.biases.AddVec(layer.biases, &biasDeltas[j])
+
+		layer.weights.Sub(layer.weights, &weightDeltas[j])
+		layer.biases.SubVec(layer.biases, &biasDeltas[j])
 	}
 	nn.mutex.Unlock()
 }
@@ -133,7 +134,7 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 		record := trainData[r]
 
 		// Forward propagation
-		nn.Predict(&record.Data)
+		prediction := nn.Predict(&record.Data)
 
 		// Get target prediction
 		target := record.Expected
@@ -141,9 +142,8 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 		dEdI := mat.NewVecDense(nn.outputLayer().out, nil)
 
 		// Find delta for each neuron
-		for j := len(nn.layers) - 1; j > 0; j-- {
+		for j := len(nn.layers) - 1; j >= 0; j-- {
 			layer := nn.layers[j]
-			prevLayer := nn.layers[j-1]
 
 			deltaW := mat.NewDense(layer.out, layer.in, nil)
 			deltaB := mat.NewVecDense(layer.out, nil)
@@ -151,37 +151,31 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 			// This is the output layer
 			if j == len(nn.layers)-1 {
 
-				cross := DeltaCrossEntropy(layer.output, &target)
-
 				// K is index of each neuron in this layer
 				for k := 0; k < layer.out; k++ {
-					//output := layer.output.AtVec(k)
-
 					// Cost with respect to output
-					//dEdO := DeltaCost(output, target.AtVec(k))
+					dEdO := prediction.AtVec(k) - target.AtVec(k)
 
 					// Output with respect to input
-					//dOdI := SigPrime(output)
+					// dOdI := SigPrime(prediction.AtVec(k))
 
 					// Save some values for the next layer
-					dEdI.SetVec(k, cross.AtVec(k))
-					//dEdI.SetVec(k, dEdO*dOdI)
+					dEdI.SetVec(k, dEdO)
 
 					// L is index of each neuron connected behind this one
 					for l := 0; l < layer.in; l++ {
 
 						// Input with respect to weight
-						dIdW := prevLayer.output.AtVec(l)
+						dIdW := nn.layers[j-1].output.AtVec(l)
 
 						// Combine derivatives using chain rule to get cost function with respect to weight
-						//dEdW := dEdO * dOdI * dIdW
-						dEdW := cross.AtVec(k) * dIdW
+						dEdW := dEdO * dIdW
 
 						deltaW.Set(k, l, dEdW)
 					}
 
-					dEdB := cross.AtVec(k)
-					//dEdB := dEdO * dEdI
+					//dEdB := cross.AtVec(k)
+					dEdB := dEdO
 					deltaB.SetVec(k, dEdB)
 				}
 
@@ -210,8 +204,10 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 
 					// L is index of each neuron connected behind this one
 					for l := 0; l < layer.in; l++ {
-
-						dIdW := prevLayer.output.AtVec(l)
+						dIdW := record.Data.AtVec(l)
+						if j > 0 {
+							dIdW = nn.layers[j-1].output.AtVec(l)
+						}
 						dEdW := dEdO * dOdI * dIdW
 						deltaW.Set(k, l, dEdW)
 					}
@@ -252,7 +248,6 @@ func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 		expected := &record.Expected
 
 		cross := CrossEntropy(prediction, expected)
-
 		max := 0
 		for i := 0; i < prediction.Len(); i++ {
 			if prediction.AtVec(i) > prediction.AtVec(max) {
@@ -265,7 +260,6 @@ func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 		}
 
 		err += cross
-
 	}
 
 	// Average error over whole train set
@@ -281,16 +275,9 @@ func (nn *Network) ContinuousEvaluation(testData []Record, out chan float64) {
 	}
 }
 
-func (nn *Network) GradientCheck(eps float64) float64 {
-
-	data := LoadData()
-	nn.TrainAndUpdate(data.Train[:10000])
-
-	record := data.Train[rand.Intn(len(data.Train))]
+func (nn *Network) GradientCheck(record Record, eps float64) float64 {
 	analyticalWeights, analyticalBiases := nn.Train([]Record{record})
-
 	weights, biases := nn.Parameters()
-
 	sum := 0.0
 	count := 0
 	for i := 0; i < len(weights); i++ {
@@ -328,9 +315,10 @@ func (nn *Network) GradientCheck(eps float64) float64 {
 
 		var diffW mat.Dense
 		diffW.Sub(&analyticalWeights[i], approxWeights)
-		diffW.Scale(1.0/2.0*eps, &diffW)
-		sum += Norm(FlattenMatrix(&diffW))
-		count++
+		num := Norm(FlattenMatrix(&diffW))
+		denom := Norm(FlattenMatrix(approxWeights)) + Norm(FlattenMatrix(&analyticalWeights[i]))
+		diff := num / denom
+		fmt.Println("Weight", diff)
 
 		var b mat.VecDense
 		b.CloneVec(&biases[i])
@@ -361,9 +349,10 @@ func (nn *Network) GradientCheck(eps float64) float64 {
 
 		var diffB mat.VecDense
 		diffB.SubVec(&analyticalBiases[i], approxBiases)
-		diffB.ScaleVec(1.0/2.0*eps, &diffB)
-		sum += Norm(&diffB)
-		count++
+		num = Norm(&diffB)
+		denom = Norm(approxBiases) + Norm(&analyticalBiases[i])
+		diff = num / denom
+		fmt.Println("Bias", diff)
 	}
 
 	return sum / float64(count)

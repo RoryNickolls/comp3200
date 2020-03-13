@@ -7,7 +7,7 @@ import (
 	"comp3200/lib/network"
 	"comp3200/lib/synchronous"
 	"flag"
-	"fmt"
+	"math/rand"
 	"strings"
 )
 
@@ -53,9 +53,11 @@ func main() {
 	if algorithm == "standard" {
 		network.TrainStandardNetwork()
 	} else if algorithm == "check" {
+		data := network.LoadData()
+		//model.TrainAndUpdate(data.Train[:10000])
 		for i := 0; i < 10; i++ {
-			result := model.GradientCheck(0.0000001)
-			fmt.Println(result)
+			model.GradientCheck(data.Train[rand.Intn(len(data.Train))], 0.0000001)
+			//fmt.Println(result)
 		}
 	} else if algorithm == "downpour" {
 		switch nodeType {

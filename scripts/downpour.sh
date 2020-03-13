@@ -6,12 +6,12 @@ rm -rf log/downpour/*.log
 
 parameter=":8889"
 
-# replicas=(":8900" ":8901" ":8902" ":8903" ":8904" ":8905" ":8906" ":8907")
-# data=(":8890" ":8891" ":8892" ":8893" ":8894" ":8895" ":8896" ":8897")
-replicas=(":8900")
-data=(":8890")
-joined_data=":8890"
-# joined_data=":8890,:8891,:8892,:8893,:8894,:8895,:8896,:8897"
+replicas=(":8900" ":8901" ":8902" ":8903" ":8904" ":8905" ":8906" ":8907")
+data=(":8890" ":8891" ":8892" ":8893" ":8894" ":8895" ":8896" ":8897")
+#replicas=(":8900")
+#data=(":8890")
+#joined_data=":8890"
+joined_data=":8890,:8891,:8892,:8893,:8894,:8895,:8896,:8897"
 
 echo "Creating data servers"
 for a in ${data[@]}; do
@@ -30,7 +30,7 @@ sleep 2
 
 echo "Creating model replicas"
 for i in ${!replicas[@]}; do
-    $exe -algorithm=downpour -type=model -data=${data[i]} -parameter=$parameter -fetch=10 -push=15 &
+    $exe -algorithm=downpour -type=model -data=${data[i]} -parameter=$parameter -fetch=1 -push=1 &
 done
 
 wait
