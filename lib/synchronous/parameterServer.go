@@ -1,7 +1,6 @@
 package synchronous
 
 import (
-	"comp3200/lib"
 	"comp3200/lib/messenger"
 	"comp3200/lib/network"
 	"log"
@@ -23,9 +22,6 @@ type SynchronousParameterServer struct {
 var data *network.Data
 
 func LaunchSynchronousParameterServer(address string, clients int, model *network.Network) {
-
-	lib.SetupLog("sync/parameter")
-
 	data = network.LoadData()
 
 	log.Println("Launching parameter server")

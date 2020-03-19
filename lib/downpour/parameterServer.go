@@ -1,7 +1,6 @@
 package downpour
 
 import (
-	"comp3200/lib"
 	"comp3200/lib/messenger"
 	"comp3200/lib/network"
 	"log"
@@ -17,11 +16,6 @@ type ParameterServer struct {
 var data *network.Data
 
 func LaunchParameterServer(address string, model *network.Network, isAsync bool) {
-	if isAsync {
-		lib.SetupLog("async/parameter")
-	} else {
-		lib.SetupLog("downpour/parameter")
-	}
 
 	data = network.LoadData()
 

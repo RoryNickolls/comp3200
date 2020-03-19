@@ -1,14 +1,11 @@
 package downpour
 
 import (
-	"comp3200/lib"
 	"comp3200/lib/messenger"
 	"comp3200/lib/network"
 )
 
 func ProvisionData(addresses []string) {
-	lib.SetupLog("downpour/provisioner")
-
 	data := network.LoadData()
 	data.Test = nil
 

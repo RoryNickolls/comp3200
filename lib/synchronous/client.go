@@ -15,7 +15,6 @@ type client struct {
 }
 
 func LaunchClient(paramAddress string) {
-	lib.SetupLog("sync/model")
 	data := network.LoadData()
 
 	minibatches := data.GetMiniBatches(lib.MiniBatchSize)

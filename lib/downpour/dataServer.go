@@ -37,8 +37,6 @@ func (ds *DataServer) serveMiniBatches(messenger messenger.Messenger, n int) {
 }
 
 func LaunchDataServer(address string) {
-	lib.SetupLog("downpour/data")
-
 	l, err := net.Listen("tcp4", address)
 
 	if err != nil {

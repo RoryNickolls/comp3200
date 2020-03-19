@@ -17,12 +17,6 @@ type ModelReplica struct {
 }
 
 func LaunchModelReplica(dataAddress string, parameterAddress string, requestSize int, fetch int, push int) {
-
-	if dataAddress == "" {
-		lib.SetupLog("async/model")
-	} else {
-		lib.SetupLog("downpour/model")
-	}
 	mr := ModelReplica{fetch: fetch, push: push}
 
 	paramMsg := messenger.Connect(parameterAddress)

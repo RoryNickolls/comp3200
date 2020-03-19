@@ -65,16 +65,21 @@ func main() {
 	} else if algorithm == "downpour" {
 		switch nodeType {
 		case "parameter":
-			go ContinuousEvaluation(model, data.Test)
+			lib.SetupLog("downpour/parameter")
+			go ContinuousParameterEvaluation(model, data.Test)
 			downpour.LaunchParameterServer(address, model, false)
 			break
 		case "model":
-			downpour.LaunchModelReplica(dataAddress, parameterAddress, 20, fetch, push)
+			lib.SetupLog("downpour/model")
+			go ContinuousModelEvaluation()
+			downpour.LaunchModelReplica(dataAddress, parameterAddress, 50, fetch, push)
 			break
 		case "data":
+			lib.SetupLog("downpour/data")
 			downpour.LaunchDataServer(address)
 			break
 		case "provision":
+			lib.SetupLog("downpour/provisioner")
 			addresses := strings.Split(dataServers, ",")
 			downpour.ProvisionData(addresses)
 			break
@@ -84,27 +89,34 @@ func main() {
 	} else if algorithm == "sync" {
 		switch nodeType {
 		case "parameter":
-			go ContinuousEvaluation(model, data.Test)
+			lib.SetupLog("sync/parameter")
+			go ContinuousParameterEvaluation(model, data.Test)
 			synchronous.LaunchSynchronousParameterServer(address, clients, model)
 			break
 		case "client":
+			lib.SetupLog("sync/model")
 			synchronous.LaunchClient(parameterAddress)
 			break
 		}
 	} else if algorithm == "async" {
 		switch nodeType {
 		case "parameter":
-			go ContinuousEvaluation(model, data.Test)
+			lib.SetupLog("async/parameter")
+			go ContinuousParameterEvaluation(model, data.Test)
 			downpour.LaunchParameterServer(address, model, true)
 			break
 		case "model":
+			lib.SetupLog("async/model")
+			go ContinuousModelEvaluation()
 			downpour.LaunchModelReplica("", parameterAddress, 20, 1, 1)
 		}
 	}
 }
 
-func ContinuousEvaluation(nn *network.Network, testData []network.Record) {
-	wait := 1
+// Wait for 1 minute
+var wait int = 1
+
+func ContinuousParameterEvaluation(nn *network.Network, testData []network.Record) {
 	count := 0
 	for {
 		loss, accuracy := nn.Evaluate(testData)
@@ -112,6 +124,18 @@ func ContinuousEvaluation(nn *network.Network, testData []network.Record) {
 		rx := messenger.Received()
 		tx := messenger.Sent()
 		log.Printf("%d,%f,%f,%d,%d\n", curTime, loss, accuracy, rx, tx)
+		count++
+		time.Sleep(time.Duration(wait) * time.Minute)
+	}
+}
+
+func ContinuousModelEvaluation() {
+	count := 0
+	for {
+		curTime := count * wait
+		rx := messenger.Received()
+		tx := messenger.Sent()
+		log.Printf("%d,%d,%d\n", curTime, rx, tx)
 		count++
 		time.Sleep(time.Duration(wait) * time.Minute)
 	}
