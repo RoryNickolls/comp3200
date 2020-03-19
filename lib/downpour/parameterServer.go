@@ -34,10 +34,6 @@ func LaunchParameterServer(address string, model *network.Network, isAsync bool)
 		return
 	}
 
-	out := make(chan float64)
-	go ps.model.ContinuousEvaluation(data.Test, out)
-	go handleEvaluation(out)
-
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -45,14 +41,6 @@ func LaunchParameterServer(address string, model *network.Network, isAsync bool)
 			return
 		}
 		go ps.handleConnection(messenger.NewMessenger(conn))
-	}
-}
-
-func handleEvaluation(out chan float64) {
-	for {
-		loss := <-out
-		accuracy := <-out
-		log.Printf("%.4f,%.4f\n", loss, accuracy)
 	}
 }
 

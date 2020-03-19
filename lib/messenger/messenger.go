@@ -16,6 +16,9 @@ type Messenger struct {
 	dec *gob.Decoder
 }
 
+var received int
+var sent int
+
 func Connect(address string) Messenger {
 	conn, err := net.Dial("tcp4", address)
 	if err != nil {
@@ -49,6 +52,7 @@ func (m *Messenger) ReceiveMessage(cmd *string) {
 	}
 	*cmd = strings.TrimSpace(temp)
 
+	received++
 	logReceiveMessage(*cmd)
 }
 
@@ -67,6 +71,7 @@ func (m *Messenger) SendMessage(msg string) {
 		fmt.Println("Error sending command", err)
 		panic(err)
 	}
+	sent++
 	logSendMessage(msg)
 }
 
@@ -92,4 +97,24 @@ func logReceiveMessage(msg string) {
 
 func StartLoggingMessages() {
 	loggingMessages = true
+}
+
+func TakeReceived() int {
+	temp := received
+	received = 0
+	return temp
+}
+
+func TakeSent() int {
+	temp := sent
+	sent = 0
+	return temp
+}
+
+func Received() int {
+	return received
+}
+
+func Sent() int {
+	return sent
 }

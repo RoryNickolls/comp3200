@@ -16,7 +16,7 @@ type ModelReplica struct {
 	push  int
 }
 
-func LaunchModelReplica(dataAddress string, parameterAddress string, fetch int, push int) {
+func LaunchModelReplica(dataAddress string, parameterAddress string, requestSize int, fetch int, push int) {
 
 	if dataAddress == "" {
 		lib.SetupLog("async/model")
@@ -44,38 +44,43 @@ func LaunchModelReplica(dataAddress string, parameterAddress string, fetch int, 
 		dataBatches = data.GetMiniBatches(lib.MiniBatchSize)
 	}
 
-	storedDeltas := 0
+	request := 0
+	weights, biases := mr.model.ZeroedParameters()
+
+	usedMiniBatches := 0
 	for {
 
 		// fmt.Println("Requesting mini-batches...")
 
 		var miniBatches [][]network.Record
 		if dataAddress != "" {
-			dataMsg.SendMessage("REQ " + strconv.Itoa(fetch))
-			dataMsg.ReceiveInterface(&miniBatches)
+			if usedMiniBatches+push >= len(miniBatches)-1 {
+				dataMsg.SendMessage("REQ " + strconv.Itoa(requestSize))
+				dataMsg.ReceiveInterface(&miniBatches)
+
+				usedMiniBatches = 0
+			}
 		} else {
-			if len(dataBatches) < fetch {
+			if len(dataBatches) < requestSize {
 				dataBatches = data.GetMiniBatches(lib.MiniBatchSize)
 			}
 			miniBatches, dataBatches = dataBatches[0:fetch], dataBatches[fetch+1:]
+			usedMiniBatches = 0
 		}
 		// fmt.Println("Received mini-batches")
-		request := 0
-
-		weights, biases := mr.model.ZeroedParameters()
 
 		// Perform training on data
 		// Update model before each mini-batch, send deltas to parameter server after
 
 		// fmt.Println("Training...")
-		for i := 0; i < len(miniBatches); i++ {
-
+		stop := usedMiniBatches + push
+		for i := usedMiniBatches; i < stop; i++ {
 			// Only make a request after fetch minibatches
-			request--
-			if request <= 0 {
+			if request == 0 {
 				mr.receiveParameters(paramMsg)
-				request = push
+				request = fetch
 			}
+			request--
 
 			w, b := mr.model.TrainAndUpdate(miniBatches[i])
 
@@ -83,15 +88,11 @@ func LaunchModelReplica(dataAddress string, parameterAddress string, fetch int, 
 				weights[j].Add(&weights[j], &w[j])
 				biases[j].AddVec(&biases[j], &b[j])
 			}
-			storedDeltas++
 
-			// Only update after push minibatches
-			if storedDeltas%push == 0 {
-				mr.sendDeltas(paramMsg, weights, biases)
-				weights, biases = mr.model.ZeroedParameters()
-				storedDeltas = 0
-			}
+			usedMiniBatches++
 		}
+		mr.sendDeltas(paramMsg, weights, biases)
+		weights, biases = mr.model.ZeroedParameters()
 		// fmt.Println("Finished training")
 	}
 }

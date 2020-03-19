@@ -7,8 +7,11 @@ import (
 	"comp3200/lib/network"
 	"comp3200/lib/synchronous"
 	"flag"
+	"fmt"
+	"log"
 	"math/rand"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -49,23 +52,24 @@ func main() {
 		messenger.StartLoggingMessages()
 	}
 
+	data := network.LoadData()
 	model := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
 	if algorithm == "standard" {
 		network.TrainStandardNetwork()
 	} else if algorithm == "check" {
-		data := network.LoadData()
-		//model.TrainAndUpdate(data.Train[:10000])
+		model.TrainAndUpdate(data.Train[:5000])
 		for i := 0; i < 10; i++ {
-			model.GradientCheck(data.Train[rand.Intn(len(data.Train))], 0.0000001)
-			//fmt.Println(result)
+			w, b := model.GradientCheck(data.Train[rand.Intn(len(data.Train))], 0.0000001)
+			fmt.Println(w, b)
 		}
 	} else if algorithm == "downpour" {
 		switch nodeType {
 		case "parameter":
+			go ContinuousEvaluation(model, data.Test)
 			downpour.LaunchParameterServer(address, model, false)
 			break
 		case "model":
-			downpour.LaunchModelReplica(dataAddress, parameterAddress, fetch, push)
+			downpour.LaunchModelReplica(dataAddress, parameterAddress, 20, fetch, push)
 			break
 		case "data":
 			downpour.LaunchDataServer(address)
@@ -80,6 +84,7 @@ func main() {
 	} else if algorithm == "sync" {
 		switch nodeType {
 		case "parameter":
+			go ContinuousEvaluation(model, data.Test)
 			synchronous.LaunchSynchronousParameterServer(address, clients, model)
 			break
 		case "client":
@@ -89,10 +94,25 @@ func main() {
 	} else if algorithm == "async" {
 		switch nodeType {
 		case "parameter":
+			go ContinuousEvaluation(model, data.Test)
 			downpour.LaunchParameterServer(address, model, true)
 			break
 		case "model":
-			downpour.LaunchModelReplica("", parameterAddress, 1, 1)
+			downpour.LaunchModelReplica("", parameterAddress, 20, 1, 1)
 		}
+	}
+}
+
+func ContinuousEvaluation(nn *network.Network, testData []network.Record) {
+	wait := 1
+	count := 0
+	for {
+		loss, accuracy := nn.Evaluate(testData)
+		curTime := count * wait
+		rx := messenger.Received()
+		tx := messenger.Sent()
+		log.Printf("%d,%f,%f,%d,%d\n", curTime, loss, accuracy, rx, tx)
+		count++
+		time.Sleep(time.Duration(wait) * time.Minute)
 	}
 }

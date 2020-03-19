@@ -9,7 +9,7 @@ func TrainStandardNetwork() {
 	fmt.Println("Training network with", len(data.Train), "Training instances and", len(data.Test), "testing instances")
 
 	// Create model
-	nn := NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.01)
+	nn := NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
 
 	epochs := 1000
 	batchSize := 20
@@ -31,7 +31,7 @@ func TrainStandardNetwork() {
 		printResult(i+1, loss, accuracy)
 
 		// Decay learning rate
-		nn.Config.LearningRate *= 0.9
+		//nn.Config.LearningRate *= 0.9
 	}
 }
 

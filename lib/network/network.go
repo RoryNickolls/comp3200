@@ -3,7 +3,6 @@ package network
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat/distuv"
@@ -66,6 +65,8 @@ func (nn *Network) SetParameters(weights []mat.Dense, biases []mat.VecDense) {
 }
 
 func (nn *Network) Parameters() ([]mat.Dense, []mat.VecDense) {
+	nn.mutex.Lock()
+
 	var weights []mat.Dense
 	var biases []mat.VecDense
 
@@ -79,6 +80,8 @@ func (nn *Network) Parameters() ([]mat.Dense, []mat.VecDense) {
 		weights = append(weights, w)
 		biases = append(biases, b)
 	}
+
+	nn.mutex.Unlock()
 
 	return weights, biases
 }
@@ -111,11 +114,17 @@ func (nn *Network) UpdateWithDeltas(weightDeltas []mat.Dense, biasDeltas []mat.V
 	for j := 0; j < len(nn.layers); j++ {
 		layer := nn.layers[j]
 
-		weightDeltas[j].Scale(nn.Config.LearningRate, &weightDeltas[j])
-		biasDeltas[j].ScaleVec(nn.Config.LearningRate, &biasDeltas[j])
+		var w mat.Dense
+		w.CloneFrom(&weightDeltas[j])
 
-		layer.weights.Sub(layer.weights, &weightDeltas[j])
-		layer.biases.SubVec(layer.biases, &biasDeltas[j])
+		var b mat.VecDense
+		b.CloneVec(&biasDeltas[j])
+
+		w.Scale(nn.Config.LearningRate, &w)
+		b.ScaleVec(nn.Config.LearningRate, &b)
+
+		layer.weights.Sub(layer.weights, &w)
+		layer.biases.SubVec(layer.biases, &b)
 	}
 	nn.mutex.Unlock()
 }
@@ -266,20 +275,13 @@ func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 	return err / float64(len(testData)), float64(correct) / float64(len(testData))
 }
 
-func (nn *Network) ContinuousEvaluation(testData []Record, out chan float64) {
-	for {
-		loss, accuracy := nn.Evaluate(testData)
-		out <- loss
-		out <- accuracy
-		time.Sleep(30000 * time.Millisecond)
-	}
-}
-
-func (nn *Network) GradientCheck(record Record, eps float64) float64 {
+func (nn *Network) GradientCheck(record Record, eps float64) (float64, float64) {
 	analyticalWeights, analyticalBiases := nn.Train([]Record{record})
 	weights, biases := nn.Parameters()
-	sum := 0.0
-	count := 0
+	weightSum := 0.0
+	biasSum := 0.0
+	weightCount := 0
+	biasCount := 0
 	for i := 0; i < len(weights); i++ {
 		r, c := weights[i].Dims()
 		approxWeights := mat.NewDense(r, c, nil)
@@ -318,7 +320,8 @@ func (nn *Network) GradientCheck(record Record, eps float64) float64 {
 		num := Norm(FlattenMatrix(&diffW))
 		denom := Norm(FlattenMatrix(approxWeights)) + Norm(FlattenMatrix(&analyticalWeights[i]))
 		diff := num / denom
-		fmt.Println("Weight", diff)
+		weightSum += diff
+		weightCount++
 
 		var b mat.VecDense
 		b.CloneVec(&biases[i])
@@ -352,10 +355,11 @@ func (nn *Network) GradientCheck(record Record, eps float64) float64 {
 		num = Norm(&diffB)
 		denom = Norm(approxBiases) + Norm(&analyticalBiases[i])
 		diff = num / denom
-		fmt.Println("Bias", diff)
+		biasSum += diff
+		biasCount++
 	}
 
-	return sum / float64(count)
+	return weightSum / float64(weightCount), biasSum / float64(biasCount)
 }
 
 type layer struct {

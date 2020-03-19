@@ -51,22 +51,8 @@ func LaunchSynchronousParameterServer(address string, clients int, model *networ
 		go ps.handleConnection(msg)
 		ps.connectedClients = append(ps.connectedClients, msg)
 		connected++
-
-		if connected >= clients {
-			out := make(chan float64)
-			go ps.model.ContinuousEvaluation(data.Test, out)
-			go handleEvaluation(out)
-		}
 	}
 
-}
-
-func handleEvaluation(out chan float64) {
-	for {
-		loss := <-out
-		accuracy := <-out
-		log.Printf("%.4f,%.4f\n", loss, accuracy)
-	}
 }
 
 func (ps *SynchronousParameterServer) newAccumulators() {
