@@ -53,7 +53,7 @@ func main() {
 	}
 
 	data := network.LoadData()
-	model := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.1)
+	model := network.NewNetwork().WithLayer(784, 300, "sigmoid").WithLayer(300, 100, "sigmoid").WithLayer(100, 10, "softmax").WithLearningRate(0.001)
 	if algorithm == "standard" {
 		network.TrainStandardNetwork()
 	} else if algorithm == "check" {
@@ -72,7 +72,7 @@ func main() {
 		case "model":
 			lib.SetupLog("downpour/model")
 			go ContinuousModelEvaluation()
-			downpour.LaunchModelReplica(dataAddress, parameterAddress, 50, fetch, push)
+			downpour.LaunchModelReplica(dataAddress, parameterAddress, 200, fetch, push)
 			break
 		case "data":
 			lib.SetupLog("downpour/data")
