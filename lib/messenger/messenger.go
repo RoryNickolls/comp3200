@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// Messenger is a struct that represents a two-way connection between system entities
 type Messenger struct {
 	enc *gob.Encoder
 	dec *gob.Decoder
@@ -19,6 +20,7 @@ type Messenger struct {
 var received int
 var sent int
 
+// Connect connects this messenger to another messenger on an IPv4 address
 func Connect(address string) Messenger {
 	conn, err := net.Dial("tcp4", address)
 	if err != nil {
@@ -28,10 +30,12 @@ func Connect(address string) Messenger {
 	return NewMessenger(conn)
 }
 
+// NewMessenger creates a new messenger using a TCP connection
 func NewMessenger(conn net.Conn) Messenger {
 	return Messenger{gob.NewEncoder(conn), gob.NewDecoder(conn)}
 }
 
+// ReceiveInterface instructs this messenger that it will receive a serialized interface
 func (m *Messenger) ReceiveInterface(v interface{}) {
 	SimulateLatency()
 	err := m.dec.Decode(v)
@@ -42,6 +46,7 @@ func (m *Messenger) ReceiveInterface(v interface{}) {
 	logReceiveMessage(reflect.TypeOf(v).String())
 }
 
+// ReceiveMessage instructs this messenger that it will receive a command string
 func (m *Messenger) ReceiveMessage(cmd *string) {
 	var temp string
 	SimulateLatency()
@@ -56,6 +61,7 @@ func (m *Messenger) ReceiveMessage(cmd *string) {
 	logReceiveMessage(*cmd)
 }
 
+// SendInterface instructs this messenger to send an interface
 func (m *Messenger) SendInterface(v interface{}) {
 	err := m.enc.Encode(v)
 	if err != nil {
@@ -65,6 +71,7 @@ func (m *Messenger) SendInterface(v interface{}) {
 	logSendMessage(reflect.TypeOf(v).String())
 }
 
+// SendMessage instructs this messenger to send a command
 func (m *Messenger) SendMessage(msg string) {
 	err := m.enc.Encode(msg)
 	if err != nil {
@@ -75,6 +82,7 @@ func (m *Messenger) SendMessage(msg string) {
 	logSendMessage(msg)
 }
 
+// SimulateLatency causes the current thread to sleep for the amount specified by latency
 func SimulateLatency() {
 	if lib.SimulatingLatency {
 		time.Sleep(lib.Latency * time.Millisecond)
@@ -95,26 +103,31 @@ func logReceiveMessage(msg string) {
 	}
 }
 
+// StartLoggingMessages enables message logging
 func StartLoggingMessages() {
 	loggingMessages = true
 }
 
+// TakeReceived returns the number of received messages and resets it
 func TakeReceived() int {
 	temp := received
 	received = 0
 	return temp
 }
 
+// TakeSent returns the number of sent messages and resets it
 func TakeSent() int {
 	temp := sent
 	sent = 0
 	return temp
 }
 
+// Received returns the number of received messages
 func Received() int {
 	return received
 }
 
+// Sent returns the number of sent messages
 func Sent() int {
 	return sent
 }

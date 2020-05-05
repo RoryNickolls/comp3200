@@ -8,27 +8,32 @@ import (
 	"gonum.org/v1/gonum/stat/distuv"
 )
 
+// NetworkConfig is a struct that represents the parameters used by a neural network for efficient synchronisation
 type NetworkConfig struct {
 	LearningRate float64
 	LayerConfigs []LayerConfig
 }
 
+// LayerConfig is a struct that represents a single layer configuration of the neural network
 type LayerConfig struct {
 	In         int
 	Out        int
 	Activation string
 }
 
+// Network is a struct that represents the model of a neural network
 type Network struct {
 	Config NetworkConfig
 	layers []layer
 	mutex  sync.Mutex
 }
 
+// NewNetwork creates a new neural network
 func NewNetwork() *Network {
 	return &Network{Config: NetworkConfig{LearningRate: 0.01}}
 }
 
+// NewNetworkFromConfig creates a new neural network using a supplied config
 func NewNetworkFromConfig(config NetworkConfig) *Network {
 	network := NewNetwork()
 	for _, layerConfig := range config.LayerConfigs {
@@ -38,6 +43,7 @@ func NewNetworkFromConfig(config NetworkConfig) *Network {
 	return network
 }
 
+// WithLayer is a chain method for building a network and its config
 func (nn *Network) WithLayer(in int, out int, activation string) *Network {
 	layerConfig := LayerConfig{in, out, activation}
 	nn.layers = append(nn.layers, newLayerFromConfig(layerConfig))
@@ -45,11 +51,13 @@ func (nn *Network) WithLayer(in int, out int, activation string) *Network {
 	return nn
 }
 
+// WithLearningRate is a chain method for setting the learning rate of a network
 func (nn *Network) WithLearningRate(eta float64) *Network {
 	nn.Config.LearningRate = eta
 	return nn
 }
 
+// SetParameters overrides the parameters of each layer in this neural network
 func (nn *Network) SetParameters(weights []mat.Dense, biases []mat.VecDense) {
 	nn.mutex.Lock()
 	if len(weights) != len(nn.layers) || len(biases) != len(nn.layers) {
@@ -64,6 +72,7 @@ func (nn *Network) SetParameters(weights []mat.Dense, biases []mat.VecDense) {
 	nn.mutex.Unlock()
 }
 
+// Parameters returns the parameters for each layer of this neural network
 func (nn *Network) Parameters() ([]mat.Dense, []mat.VecDense) {
 	nn.mutex.Lock()
 
@@ -86,6 +95,7 @@ func (nn *Network) Parameters() ([]mat.Dense, []mat.VecDense) {
 	return weights, biases
 }
 
+// ZeroedParameters returns parameter matrices and vectors of the correct dimensions but filled with zero
 func (nn *Network) ZeroedParameters() ([]mat.Dense, []mat.VecDense) {
 	weights, biases := nn.Parameters()
 	for i := 0; i < len(weights); i++ {
@@ -100,6 +110,7 @@ func (nn *Network) outputLayer() *layer {
 	return &nn.layers[len(nn.layers)-1]
 }
 
+// Predict feeds an input forward through the network and returns its output
 func (nn *Network) Predict(input *mat.VecDense) *mat.VecDense {
 	nn.layers[0].feed(input)
 	for j := 1; j < len(nn.layers); j++ {
@@ -108,6 +119,7 @@ func (nn *Network) Predict(input *mat.VecDense) *mat.VecDense {
 	return nn.outputLayer().output
 }
 
+// UpdateWithDeltas shifts all the parameters by the supplied amounts scaled by the learning rate
 func (nn *Network) UpdateWithDeltas(weightDeltas []mat.Dense, biasDeltas []mat.VecDense) {
 	nn.mutex.Lock()
 	// Update each layers weights with deltas
@@ -129,6 +141,7 @@ func (nn *Network) UpdateWithDeltas(weightDeltas []mat.Dense, biasDeltas []mat.V
 	nn.mutex.Unlock()
 }
 
+// Train returns the gradients that this network should be updated with based on the supplied list of training data records
 func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 
 	// Initialise error deltas
@@ -164,9 +177,6 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 				for k := 0; k < layer.out; k++ {
 					// Cost with respect to output
 					dEdO := prediction.AtVec(k) - target.AtVec(k)
-
-					// Output with respect to input
-					// dOdI := SigPrime(prediction.AtVec(k))
 
 					// Save some values for the next layer
 					dEdI.SetVec(k, dEdO)
@@ -241,12 +251,14 @@ func (nn *Network) Train(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 	return weightDeltas, biasDeltas
 }
 
+// TrainAndUpdate trains this network on supplied data and then updates it using the learning rate
 func (nn *Network) TrainAndUpdate(trainData []Record) ([]mat.Dense, []mat.VecDense) {
 	weightDeltas, biasDeltas := nn.Train(trainData)
 	nn.UpdateWithDeltas(weightDeltas, biasDeltas)
 	return weightDeltas, biasDeltas
 }
 
+// Evaluate returns the average error and average correct predictions of a supplied test set
 func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 	correct := 0
 
@@ -275,6 +287,7 @@ func (nn *Network) Evaluate(testData []Record) (float64, float64) {
 	return err / float64(len(testData)), float64(correct) / float64(len(testData))
 }
 
+// GradientCheck trains on a single record and returns the difference in analytical and numerical gradients for the weights and biases
 func (nn *Network) GradientCheck(record Record, eps float64) (float64, float64) {
 	analyticalWeights, analyticalBiases := nn.Train([]Record{record})
 	weights, biases := nn.Parameters()
@@ -362,6 +375,7 @@ func (nn *Network) GradientCheck(record Record, eps float64) (float64, float64) 
 	return weightSum / float64(weightCount), biasSum / float64(biasCount)
 }
 
+// layer is a struct that represents a single layer of the neural network
 type layer struct {
 	in                 int
 	out                int

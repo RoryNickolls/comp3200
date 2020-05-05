@@ -14,6 +14,7 @@ type client struct {
 	data  network.Data
 }
 
+// LaunchClient starts a synchronous model replica client and connects to a parameter ser ver
 func LaunchClient(paramAddress string) {
 	data := network.LoadData()
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// TrainStandardNetwork trains a non-distributed mini-batch neural network on all the data
 func TrainStandardNetwork() {
 	data := LoadData()
 	fmt.Println("Training network with", len(data.Train), "Training instances and", len(data.Test), "testing instances")

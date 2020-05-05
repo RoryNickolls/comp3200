@@ -9,12 +9,14 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
+// ParameterServer is a struct that represents a Downpour parameter server
 type ParameterServer struct {
 	model *network.Network
 }
 
 var data *network.Data
 
+// LaunchParameterServer starts a parameter server with specified parameters
 func LaunchParameterServer(address string, model *network.Network, isAsync bool) {
 
 	data = network.LoadData()

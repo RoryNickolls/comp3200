@@ -10,6 +10,7 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
+// SynchronousParameterServer is a struct that represents a parameter server using synchronous SGD
 type SynchronousParameterServer struct {
 	model            *network.Network
 	connectedClients []messenger.Messenger
@@ -21,6 +22,7 @@ type SynchronousParameterServer struct {
 
 var data *network.Data
 
+// LaunchSynchronousParameterServer starts a sync parameter server with a specified number of expected clients
 func LaunchSynchronousParameterServer(address string, clients int, model *network.Network) {
 	data = network.LoadData()
 

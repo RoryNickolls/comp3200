@@ -11,11 +11,13 @@ import (
 	"strings"
 )
 
+// DataServer is a struct that represents a Downpour data server
 type DataServer struct {
 	miniBatches [][]network.Record
 	index       int
 }
 
+// Serve n mini-batches using a messenger
 func (ds *DataServer) serveMiniBatches(messenger messenger.Messenger, n int) {
 	var batches [][]network.Record
 	count := 0
@@ -36,6 +38,7 @@ func (ds *DataServer) serveMiniBatches(messenger messenger.Messenger, n int) {
 	ds.index += count
 }
 
+// LaunchDataServer starts a data server on a specified address
 func LaunchDataServer(address string) {
 	l, err := net.Listen("tcp4", address)
 
@@ -71,6 +74,7 @@ func LaunchDataServer(address string) {
 	}
 }
 
+// Wait for a data request to come in before continuing
 func (ds *DataServer) waitForRequest(messenger messenger.Messenger) int {
 	// fmt.Println("Waiting for data request")
 	var msg string

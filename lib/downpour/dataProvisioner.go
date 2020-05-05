@@ -5,6 +5,7 @@ import (
 	"comp3200/lib/network"
 )
 
+// ProvisionData partitions data and sends to supplied addresses
 func ProvisionData(addresses []string) {
 	data := network.LoadData()
 	data.Test = nil

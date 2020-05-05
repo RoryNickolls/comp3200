@@ -22,6 +22,7 @@ func rawImageToInputVector(img GoMNIST.RawImage) *mat.VecDense {
 	return mat.NewVecDense(pixels, data)
 }
 
+// LoadData uses GoMNIST to load MNIST data from the data/ folder
 func LoadData() *Data {
 
 	// Load data from files
@@ -48,6 +49,7 @@ func LoadData() *Data {
 	return &Data{trainRecords, testRecords}
 }
 
+// Softmax returns the softmax of an input vector
 func Softmax(vec *mat.VecDense) *mat.VecDense {
 	new := mat.NewVecDense(vec.Len(), nil)
 
@@ -58,8 +60,6 @@ func Softmax(vec *mat.VecDense) *mat.VecDense {
 		sum += math.Exp(vec.AtVec(i) - max)
 	}
 
-	// NEED TO APPLY MAX-NORMALIZATION HERE
-
 	for i := 0; i < vec.Len(); i++ {
 		new.SetVec(i, math.Exp(vec.AtVec(i)-max)/sum)
 	}
@@ -67,19 +67,22 @@ func Softmax(vec *mat.VecDense) *mat.VecDense {
 	return new
 }
 
+// Sig calculates the sigmoid function for a given value
 func Sig(v float64) float64 {
 	return 1.0 / (1.0 + math.Exp(-v))
 }
 
+// SigPrime calculates the derivative of the sigmoid function for a given value
 func SigPrime(v float64) float64 {
 	return v * (1.0 - v)
 }
 
-// MSE cost and deltacost functions, not used anymore
+// Cost calculates MSE cost for an output and target value
 func Cost(activation, target float64) float64 {
 	return math.Pow(activation-target, 2.0)
 }
 
+// CostVec calculates total MSE cost for an entire output and target vector
 func CostVec(activation, target *mat.VecDense) float64 {
 	sum := 0.0
 	for i := 0; i < activation.Len(); i++ {
@@ -88,10 +91,12 @@ func CostVec(activation, target *mat.VecDense) float64 {
 	return sum
 }
 
+// DeltaCost returns the derivative of MSE cost
 func DeltaCost(activation, target float64) float64 {
 	return 2.0 * (target - activation)
 }
 
+// DeltaCrossEntropy returns the derivative of the cross-entropy cost function (unused as neural network used a specific optimisation)
 func DeltaCrossEntropy(activation, target *mat.VecDense) *mat.VecDense {
 	newVec := mat.NewVecDense(activation.Len(), nil)
 	newVec.SubVec(target, activation)
@@ -99,11 +104,13 @@ func DeltaCrossEntropy(activation, target *mat.VecDense) *mat.VecDense {
 	return newVec
 }
 
+// CrossEntropy calculates the cross-entropy value of an output and target vector
 func CrossEntropy(activation, target *mat.VecDense) float64 {
 	val := stat.CrossEntropy(target.RawVector().Data, activation.RawVector().Data)
 	return val
 }
 
+// ApplyVec applies a function to each element of a vector
 func ApplyVec(vec *mat.VecDense, f func(float64) float64) *mat.VecDense {
 	newVec := mat.NewVecDense(vec.Len(), nil)
 	for i := 0; i < newVec.Len(); i++ {
@@ -113,12 +120,15 @@ func ApplyVec(vec *mat.VecDense, f func(float64) float64) *mat.VecDense {
 	return newVec
 }
 
+// FlattenMatrix takes a matrix and flattens it into a single vector
+// Used for flattening raw images into input vectors
 func FlattenMatrix(matrix *mat.Dense) *mat.VecDense {
 	r, c := matrix.Dims()
 	length := r * c
 	return mat.NewVecDense(length, matrix.RawMatrix().Data)
 }
 
+// Norm returns the norm of a vector
 func Norm(vec *mat.VecDense) float64 {
 	sum := 0.0
 	for i := 0; i < vec.Len(); i++ {

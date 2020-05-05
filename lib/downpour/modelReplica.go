@@ -10,12 +10,14 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
+// ModelReplica is a struct that represents a Downpour model replica
 type ModelReplica struct {
 	model *network.Network
 	fetch int
 	push  int
 }
 
+// LaunchModelReplica starts a model replica with the specified parameters
 func LaunchModelReplica(dataAddress string, parameterAddress string, requestSize int, fetch int, push int) {
 	mr := ModelReplica{fetch: fetch, push: push}
 
