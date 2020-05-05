@@ -4,13 +4,13 @@ source scripts/setup.sh
 
 rm -rf log/sync/*.log
 
-parameter="10.0.0.102:8889"
+parameter=":8889"
 clients=8
 
-# echo "Creating parameter server"
-# $exe -algorithm=sync -type=parameter -host=$parameter -clients=$clients &
+echo "Creating parameter server"
+$exe -algorithm=sync -type=parameter -host=$parameter -clients=$clients &
 
-# sleep 1
+sleep 1
 
 echo "Creating clients"
 for i in $(seq 1 $clients); do
