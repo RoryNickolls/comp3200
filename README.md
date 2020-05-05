@@ -1,5 +1,6 @@
 How to use the project:
-    The three bash scripts in the scripts/ folder are used to launch each algorithm
+
+   The three bash scripts in the scripts/ folder are used to launch each algorithm
         asynchronous.sh
         downpour.sh
         synchronous.sh
